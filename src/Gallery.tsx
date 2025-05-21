@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
 
-const apiUrl = import.meta.env.VITE_API_URL;
-
 function Gallery() {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${apiUrl}/images`)
+    fetch('/.netlify/functions/images')
       .then((res) => res.json())
       .then((data) => {
         setImages(data);
