@@ -5,7 +5,7 @@ function Gallery() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/.netlify/functions/images')
+    fetch('/.netlify/functions/getImages')
       .then((res) => res.json())
       .then((data) => {
         setImages(data);
