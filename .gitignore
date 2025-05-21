@@ -26,11 +26,11 @@ dist-ssr
 # Environment variables
 .env*
 
-# Miscellaneous
-miscellaneous/*
+# TypeScript build cache
+*.tsbuildinfo
 
 # Local Netlify folder
 .netlify
 
-# TypeScript build cache
-*.tsbuildinfo
+# Miscellaneous
+miscellaneous/*
