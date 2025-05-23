@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
+import { Button } from "@/components/ui/button"
+
 import Gallery from './Gallery';
 
 import { fetchPhotos } from './utils/fetchPhotos';
@@ -10,6 +12,14 @@ const App = () =>{
   const [photoFormat, setPhotoFormat] = useState<string | null>(null);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    document.documentElement.classList.add("dark")
+
+    return () => {
+      document.documentElement.classList.remove("dark")
+    }
+  }, [])
 
   useEffect(() => {
     const loadPhotos = async () => {
@@ -28,12 +38,12 @@ const App = () =>{
   if (loading) return <p>Cargando fotos...</p>
 
   return (
-    <div>
+    <div className="text-3xl font-bold underline">
       <h1>Colección</h1>
       <div>
-        <button onClick={() => setPhotoFormat(null)}>Todas</button>
-        <button onClick={() => setPhotoFormat('analog')}>Analógicas</button>
-        <button onClick={() => setPhotoFormat('digital')}>Digitales</button>
+        <Button onClick={() => setPhotoFormat(null)}>Todas</Button>
+        <Button onClick={() => setPhotoFormat('analog')}>Analógicas</Button>
+        <Button onClick={() => setPhotoFormat('digital')}>Digitales</Button>
       </div>
       
       <Gallery galleryPhotos={photoUrls} />
