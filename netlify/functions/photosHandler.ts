@@ -21,11 +21,11 @@ export const handler: Handler = async (event) => {
       statusCode: 200,
       body: JSON.stringify(photos),
     };
-  } catch (error) {
-    console.error('Cloudinary error: ', error);
+  } catch (err) {
+    console.error('Cloudinary error: ', err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch photos' }),
+      body: JSON.stringify({ err: 'Failed to fetch photos' }),
     };
   }
 };
