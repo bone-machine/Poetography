@@ -1,30 +1,31 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-import { Button } from "@/components/ui/button"
-
 import Gallery from './Gallery';
+
+import { Button } from "@/components/ui/button"
 
 import { fetchPhotos } from './utils/fetchPhotos';
 
 const App = () =>{
 
-  const [photoFormat, setPhotoFormat] = useState<string | null>(null);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [filteredPhotoUrls, setFilteredPhotoUrls] = useState<string[]>([]);
+  const [photosFormat, setPhotosFormat] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Hacky, hacky
   useEffect(() => {
-    document.documentElement.classList.add("dark")
-
+    document.documentElement.classList.add("dark");
     return () => {
-      document.documentElement.classList.remove("dark")
+      document.documentElement.classList.remove("dark");
     }
   }, [])
 
   useEffect(() => {
     const loadPhotos = async () => {
       try {
-        const data = await fetchPhotos(photoFormat || undefined);
+        const data = await fetchPhotos();
         setPhotoUrls(data);
       } catch (err) {
         console.error(err);
@@ -33,7 +34,16 @@ const App = () =>{
       }
     };
     loadPhotos();
-  }, [photoFormat]);
+  }, []);
+
+   useEffect(() => {
+    if (photosFormat !== null) {
+      const filteredPhotoUrls = photoUrls.filter(url => url.includes(`/${photosFormat}/`));
+      setFilteredPhotoUrls(filteredPhotoUrls);
+      return;
+    }
+    setFilteredPhotoUrls(photoUrls);
+  }, [photoUrls, photosFormat]);
 
   if (loading) return <p>Cargando fotos...</p>
 
@@ -41,12 +51,11 @@ const App = () =>{
     <div className="text-3xl font-bold underline">
       <h1>Colección</h1>
       <div>
-        <Button onClick={() => setPhotoFormat(null)}>Todas</Button>
-        <Button onClick={() => setPhotoFormat('analog')}>Analógicas</Button>
-        <Button onClick={() => setPhotoFormat('digital')}>Digitales</Button>
+        <Button onClick={() => setPhotosFormat(null)}>Todas</Button>
+        <Button onClick={() => setPhotosFormat('analog')}>Analógicas</Button>
+        <Button onClick={() => setPhotosFormat('digital')}>Digitales</Button>
       </div>
-      
-      <Gallery galleryPhotos={photoUrls} />
+      <Gallery galleryPhotos={filteredPhotoUrls} />
     </div>
   )
 };
