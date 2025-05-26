@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-import Gallery from './Gallery';
-
 import { Button } from "@/components/ui/button"
 
-import { fetchPhotos } from './utils/fetchPhotos';
+import Gallery from './Gallery';
+
+import { usePhotoUrls } from './hooks/usePhotoUrls';
 
 const App = () =>{
 
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
-  const [filteredPhotoUrls, setFilteredPhotoUrls] = useState<string[]>([]);
-  const [photosFormat, setPhotosFormat] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [photosFolderName, setPhotosFolderName] = useState<string | null>(null);
+  const { filteredPhotoUrls, loading } = usePhotoUrls(photosFolderName);
 
   // Hacky, hacky
   useEffect(() => {
@@ -22,38 +20,15 @@ const App = () =>{
     }
   }, [])
 
-  useEffect(() => {
-    const loadPhotos = async () => {
-      try {
-        const data = await fetchPhotos();
-        setPhotoUrls(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadPhotos();
-  }, []);
-
-   useEffect(() => {
-    if (photosFormat !== null) {
-      const filteredPhotoUrls = photoUrls.filter(url => url.includes(`/${photosFormat}/`));
-      setFilteredPhotoUrls(filteredPhotoUrls);
-      return;
-    }
-    setFilteredPhotoUrls(photoUrls);
-  }, [photoUrls, photosFormat]);
-
   if (loading) return <p>Cargando fotos...</p>
 
   return (
     <div className="text-3xl font-bold underline">
       <h1>Colección</h1>
       <div>
-        <Button onClick={() => setPhotosFormat(null)}>Todas</Button>
-        <Button onClick={() => setPhotosFormat('analog')}>Analógicas</Button>
-        <Button onClick={() => setPhotosFormat('digital')}>Digitales</Button>
+        <Button onClick={() => setPhotosFolderName(null)}>Todas</Button>
+        <Button onClick={() => setPhotosFolderName('analog')}>Analógicas</Button>
+        <Button onClick={() => setPhotosFolderName('digital')}>Digitales</Button>
       </div>
       <Gallery galleryPhotos={filteredPhotoUrls} />
     </div>
