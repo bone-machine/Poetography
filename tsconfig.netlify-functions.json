@@ -4,11 +4,13 @@
     "lib": ["ES2022"],
     "module": "CommonJS",
     "moduleResolution": "Node",
+    "types": ["node"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "allowJs": false
+    "allowJs": false,
+    "ignoreDeprecations": "6.0"
   },
   "include": ["netlify/functions/**/*"]
 }
