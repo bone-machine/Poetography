@@ -1,11 +1,6 @@
 {
   "compilerOptions": {
-    "composite": true,
-    // TailwindCSS + shadcn/ui
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "composite": true
   },
   "files": [],
   "references": [
