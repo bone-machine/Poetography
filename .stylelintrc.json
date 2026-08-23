@@ -1,3 +1,18 @@
 {
-  "extends": ["stylelint-config-standard", "stylelint-config-css-modules"]
+  "plugins": [
+    "stylelint-declaration-strict-value",
+    "stylelint-value-no-unknown-custom-properties",
+    "stylelint-high-performance-animation"
+  ],
+  "rules": {
+    "scale-unlimited/declaration-strict-value": ["/color$/", "fill", "stroke"],
+    "csstools/value-no-unknown-custom-properties": true,
+    "plugin/no-low-performance-animation-properties": [
+      true,
+      {
+        "ignore": "paint-properties"
+      }
+    ]
+  },
+  "extends": ["stylelint-config-standard", "stylelint-config-css-modules", "stylelint-config-recess-order"]
 }
