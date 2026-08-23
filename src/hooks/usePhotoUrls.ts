@@ -1,12 +1,12 @@
-import { useEffect, useState, useMemo } from 'react';
-import { fetchPhotos } from '../utils/fetchPhotos';
+import { useEffect, useState, useMemo } from "react";
+import { fetchPhotos } from "../utils/fetchPhotos";
 
 export function usePhotoUrls(photosFolderName: string | null) {
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const CACHE_KEY = 'photoUrlsCache';
+    const CACHE_KEY = "photoUrlsCache";
     const TTL_MS = 1000 * 60 * 30; // 30 minutes
 
     const loadPhotos = async () => {

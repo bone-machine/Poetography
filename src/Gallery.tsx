@@ -2,10 +2,10 @@ const Gallery = ({ galleryPhotos }: { galleryPhotos: string[] }) => (
   <div>
     <div
       style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '0.5rem',
-        justifyContent: 'center',
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "0.5rem",
+        justifyContent: "center",
       }}
     >
       {galleryPhotos.map((url, i) => (
@@ -13,7 +13,7 @@ const Gallery = ({ galleryPhotos }: { galleryPhotos: string[] }) => (
           key={i}
           src={url}
           alt={`Photo ${i + 1}`}
-          style={{ width: 150, height: 150, objectFit: 'cover' }}
+          style={{ width: 150, height: 150, objectFit: "cover" }}
         />
       ))}
     </div>

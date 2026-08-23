@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import './App.css';
+import { useState } from "react";
+import "./App.css";
 
-import Gallery from './Gallery';
+import Gallery from "./Gallery";
 
-import { usePhotoUrls } from './hooks/usePhotoUrls';
+import { usePhotoUrls } from "./hooks/usePhotoUrls";
 
 const App = () => {
   const [photosFolderName, setPhotosFolderName] = useState<string | null>(null);
@@ -16,10 +16,10 @@ const App = () => {
       <h1>Colección</h1>
       <div>
         <button onClick={() => setPhotosFolderName(null)}>Todas</button>
-        <button onClick={() => setPhotosFolderName('analog')}>
+        <button onClick={() => setPhotosFolderName("analog")}>
           Analógicas
         </button>
-        <button onClick={() => setPhotosFolderName('digital')}>
+        <button onClick={() => setPhotosFolderName("digital")}>
           Digitales
         </button>
       </div>
