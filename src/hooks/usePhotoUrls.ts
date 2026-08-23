@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
-import { fetchPhotos } from "../utils/fetchPhotos";
+import { useEffect, useState, useMemo } from 'react';
+import { fetchPhotos } from '../utils/fetchPhotos';
 
 export function usePhotoUrls(photosFolderName: string | null) {
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
@@ -7,7 +7,7 @@ export function usePhotoUrls(photosFolderName: string | null) {
 
   useEffect(() => {
     const CACHE_KEY = 'photoUrlsCache';
-    const TTL_MS = 1000 * 60 * 30;  // 30 minutes
+    const TTL_MS = 1000 * 60 * 30; // 30 minutes
 
     const loadPhotos = async () => {
       try {
@@ -25,7 +25,7 @@ export function usePhotoUrls(photosFolderName: string | null) {
         setPhotoUrls(data);
         localStorage.setItem(
           CACHE_KEY,
-          JSON.stringify({ timestamp: Date.now(), data })
+          JSON.stringify({ timestamp: Date.now(), data }),
         );
       } catch (err) {
         console.error(err);
@@ -38,10 +38,11 @@ export function usePhotoUrls(photosFolderName: string | null) {
   }, []);
 
   const filteredPhotoUrls = useMemo(
-    () => photosFolderName === null
-      ? photoUrls
-      : photoUrls.filter((url) => url.includes(`/${photosFolderName}/`)),
-    [photosFolderName, photoUrls]
+    () =>
+      photosFolderName === null
+        ? photoUrls
+        : photoUrls.filter((url) => url.includes(`/${photosFolderName}/`)),
+    [photosFolderName, photoUrls],
   );
 
   return { loading, filteredPhotoUrls, photoUrls };

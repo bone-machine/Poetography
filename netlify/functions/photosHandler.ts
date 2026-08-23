@@ -10,13 +10,17 @@ cloudinary.config({
 export const handler: Handler = async (event) => {
   try {
     const photosFolderName = event.queryStringParameters?.photosFolderName;
-    const searchQuery = photosFolderName ? `folder:${photosFolderName}` : 'resource_type=image' // Fetch all photos with resource_type=image, also could be just ''
+    const searchQuery = photosFolderName
+      ? `folder:${photosFolderName}`
+      : 'resource_type=image'; // Fetch all photos with resource_type=image, also could be just ''
     const searchResult = await cloudinary.search
       .expression(searchQuery)
       .sort_by('public_id', 'asc')
       .max_results(100)
       .execute();
-    const photoUrls = searchResult.resources.map((file: { secure_url: string }) => file.secure_url);
+    const photoUrls = searchResult.resources.map(
+      (file: { secure_url: string }) => file.secure_url,
+    );
     return {
       statusCode: 200,
       body: JSON.stringify(photoUrls),
