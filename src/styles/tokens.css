@@ -1,2 +1,2 @@
-@import url("@radix-ui/colors/plum.css");
-@import url("@radix-ui/colors/plum-dark.css");
+@import url("@radix-ui/colors/plum.css") layer(tokens);
+@import url("@radix-ui/colors/plum-dark.css") layer(tokens);
