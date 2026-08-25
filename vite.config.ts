@@ -10,6 +10,9 @@ export default defineConfig({
     transformer: "lightningcss",
     lightningcss: {
       targets: browserslistToTargets(browserslist("defaults")),
+      cssModules: {
+        pattern: "[local]_[hash]",
+      },
     },
   },
 });
