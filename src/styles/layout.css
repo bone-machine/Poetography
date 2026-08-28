@@ -1,8 +1,13 @@
 @layer layout {
   #root {
-    max-width: 1280px;
+    width: 100%;
+    min-height: 100vh;
     padding: 2rem;
-    margin: 0 auto;
+  }
+
+  .app {
+    width: 100%;
+    min-height: 100%;
     text-align: center;
   }
 }

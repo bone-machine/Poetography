@@ -5,8 +5,16 @@
     "stylelint-high-performance-animation"
   ],
   "rules": {
-    "scale-unlimited/declaration-strict-value": ["/color$/", "fill", "stroke"],
-    "csstools/value-no-unknown-custom-properties": true,
+    "scale-unlimited/declaration-strict-value": [["/color$/", "fill", "stroke"]],
+    "csstools/value-no-unknown-custom-properties": [
+      true,
+      {
+        "importFrom": ["src/styles/tokens.css"],
+        "resolver": {
+          "moduleDirectories": ["node_modules"]
+        }
+      }
+    ],
     "plugin/no-low-performance-animation-properties": [
       true,
       {

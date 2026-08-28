@@ -1,5 +1,3 @@
-/* stylelint-disable csstools/value-no-unknown-custom-properties -- Radix Colors are imported in tokens.css */
-
 @layer base {
   :root {
     font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -24,8 +22,6 @@
   }
 
   body {
-    display: flex;
-    place-items: center;
     min-width: 320px;
     min-height: 100vh;
     margin: 0;
