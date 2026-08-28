@@ -11,6 +11,8 @@ const prefetchedUrls = new Map<string, "pending" | "fulfilled">();
 
 /** Never request more than this from Cloudinary for the lightbox. */
 const LIGHTBOX_MAX_WIDTH = 3840;
+/** Round dynamic widths to improve CDN reuse without significantly overfetching. */
+const LIGHTBOX_WIDTH_BUCKET_PX = 100;
 
 export function canPrefetchImages(): boolean {
   const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
@@ -51,12 +53,17 @@ export function getLightboxImageWidth(
     : window.innerHeight - (hasPoem && !isDesktop ? window.innerHeight * 0.4 : 0) - verticalPadding;
   const widthConstrainedByHeight = Math.max(displayHeight, 0) * (photoWidth / photoHeight);
 
-  return Math.min(
+  const requestedWidth = Math.min(
     photoWidth,
     Math.max(Math.ceil(Math.max(displayWidth, 0) * dpr), 1),
     Math.max(Math.ceil(Math.max(widthConstrainedByHeight, 0) * dpr), 1),
     LIGHTBOX_MAX_WIDTH,
   );
+
+  const bucketedWidth =
+    Math.ceil(requestedWidth / LIGHTBOX_WIDTH_BUCKET_PX) * LIGHTBOX_WIDTH_BUCKET_PX;
+
+  return Math.min(photoWidth, bucketedWidth, LIGHTBOX_MAX_WIDTH);
 }
 
 export function getLightboxImageUrl(
