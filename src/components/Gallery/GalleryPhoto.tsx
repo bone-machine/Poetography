@@ -1,5 +1,5 @@
 import { useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import type { Photo } from "../../types/photo";
 import {
@@ -14,19 +14,29 @@ import styles from "./Gallery.module.css";
 type GalleryPhotoProps = {
   photo: Photo;
   index: number;
+  isLoaded: boolean;
   onSelect: () => void;
+  onLoad: (publicId: string) => void;
+  onError: (publicId: string) => void;
   onHover: () => void;
 };
 
-const GalleryPhoto = ({ photo, index, onSelect, onHover }: GalleryPhotoProps) => {
+const GalleryPhoto = ({
+  photo,
+  index,
+  isLoaded,
+  onSelect,
+  onLoad,
+  onError,
+  onHover,
+}: GalleryPhotoProps) => {
   const imageRef = useRef<HTMLImageElement>(null);
   const hoverTimerRef = useRef<number | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (imageRef.current?.complete && imageRef.current.naturalWidth > 0) {
-      setIsLoaded(true);
+      onLoad(photo.publicId);
     }
 
     return () => {
@@ -34,7 +44,7 @@ const GalleryPhoto = ({ photo, index, onSelect, onHover }: GalleryPhotoProps) =>
         window.clearTimeout(hoverTimerRef.current);
       }
     };
-  }, []);
+  }, [onLoad, photo.publicId]);
 
   const prefetchAfterHover = () => {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
@@ -83,8 +93,8 @@ const GalleryPhoto = ({ photo, index, onSelect, onHover }: GalleryPhotoProps) =>
           height={photo.height}
           alt={`Photo ${index + 1}`}
           loading={index < 4 ? "eager" : "lazy"}
-          onLoad={() => setIsLoaded(true)}
-          onError={() => setIsLoaded(false)}
+          onLoad={() => onLoad(photo.publicId)}
+          onError={() => onError(photo.publicId)}
           data-reduced-motion={prefersReducedMotion || undefined}
         />
       </div>

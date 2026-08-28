@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import Lightbox from "../Lightbox/Lightbox";
 import poemsData from "../../data/poems.json";
@@ -19,9 +19,30 @@ type GalleryProps = {
 
 const Gallery = ({ galleryPhotos, isLoadingMetadata }: GalleryProps) => {
   const [selectedPublicId, setSelectedPublicId] = useState<string | null>(null);
+  const [loadedPhotoIds, setLoadedPhotoIds] = useState<Set<string>>(() => new Set());
   const selectedIndex = selectedPublicId
     ? galleryPhotos.findIndex((photo) => photo.publicId === selectedPublicId)
     : -1;
+
+  const handlePhotoLoad = useCallback((publicId: string) => {
+    setLoadedPhotoIds((loadedIds) => {
+      if (loadedIds.has(publicId)) return loadedIds;
+
+      const nextLoadedIds = new Set(loadedIds);
+      nextLoadedIds.add(publicId);
+      return nextLoadedIds;
+    });
+  }, []);
+
+  const handlePhotoError = useCallback((publicId: string) => {
+    setLoadedPhotoIds((loadedIds) => {
+      if (!loadedIds.has(publicId)) return loadedIds;
+
+      const nextLoadedIds = new Set(loadedIds);
+      nextLoadedIds.delete(publicId);
+      return nextLoadedIds;
+    });
+  }, []);
 
   return (
     <>
@@ -47,7 +68,10 @@ const Gallery = ({ galleryPhotos, isLoadingMetadata }: GalleryProps) => {
                 key={photo.publicId}
                 photo={photo}
                 index={i}
+                isLoaded={loadedPhotoIds.has(photo.publicId)}
                 onSelect={() => setSelectedPublicId(photo.publicId)}
+                onLoad={handlePhotoLoad}
+                onError={handlePhotoError}
                 onHover={() => prefetchLightboxPhoto(photo, Boolean(poems[photo.publicId]))}
               />
             ))}
