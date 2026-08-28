@@ -26,6 +26,10 @@ export const handler: Handler = async (event) => {
     );
     return {
       statusCode: 200,
+      headers: {
+        "Cache-Control": "public, max-age=3600, s-maxage=3600",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(photos),
     };
   } catch (err) {
