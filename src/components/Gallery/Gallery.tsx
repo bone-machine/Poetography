@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import Lightbox from "../Lightbox/Lightbox";
 import poemsData from "../../data/poems.json";
@@ -15,9 +16,11 @@ const METADATA_SKELETON_COUNT = 8;
 type GalleryProps = {
   galleryPhotos: Photo[];
   isLoadingMetadata: boolean;
+  photosFolderName: string | null;
 };
 
-const Gallery = ({ galleryPhotos, isLoadingMetadata }: GalleryProps) => {
+const Gallery = ({ galleryPhotos, isLoadingMetadata, photosFolderName }: GalleryProps) => {
+  const prefersReducedMotion = useReducedMotion();
   const [selectedPublicId, setSelectedPublicId] = useState<string | null>(null);
   const [loadedPhotoIds, setLoadedPhotoIds] = useState<Set<string>>(() => new Set());
   const selectedIndex = selectedPublicId
@@ -44,38 +47,47 @@ const Gallery = ({ galleryPhotos, isLoadingMetadata }: GalleryProps) => {
     });
   }, []);
 
+  const galleryKey = photosFolderName ?? "all-photos";
+
   return (
     <>
-      <div
-        className={styles.gallery}
-        aria-busy={isLoadingMetadata}
-        aria-label={isLoadingMetadata ? "Cargando galería" : undefined}
-      >
-        {isLoadingMetadata
-          ? Array.from({ length: METADATA_SKELETON_COUNT }, (_, i) => (
-              <div
-                key={`metadata-skeleton-${i}`}
-                className={styles["photo-placeholder"]}
-                aria-hidden
-              >
-                <div className={styles["photo-frame"]} style={{ aspectRatio: "3 / 2" }}>
-                  <div className={styles["photo-skeleton"]} />
+      <AnimatePresence initial={false} mode="wait">
+        <motion.div
+          key={galleryKey}
+          className={styles.gallery}
+          aria-busy={isLoadingMetadata}
+          aria-label={isLoadingMetadata ? "Cargando galería" : undefined}
+          initial={prefersReducedMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={prefersReducedMotion ? undefined : { opacity: 0 }}
+          transition={{ duration: 0.1, ease: "easeOut" }}
+        >
+          {isLoadingMetadata
+            ? Array.from({ length: METADATA_SKELETON_COUNT }, (_, i) => (
+                <div
+                  key={`metadata-skeleton-${i}`}
+                  className={styles["photo-placeholder"]}
+                  aria-hidden
+                >
+                  <div className={styles["photo-frame"]} style={{ aspectRatio: "3 / 2" }}>
+                    <div className={styles["photo-skeleton"]} />
+                  </div>
                 </div>
-              </div>
-            ))
-          : galleryPhotos.map((photo, i) => (
-              <GalleryPhoto
-                key={photo.publicId}
-                photo={photo}
-                index={i}
-                isLoaded={loadedPhotoIds.has(photo.publicId)}
-                onSelect={() => setSelectedPublicId(photo.publicId)}
-                onLoad={handlePhotoLoad}
-                onError={handlePhotoError}
-                onHover={() => prefetchLightboxPhoto(photo, Boolean(poems[photo.publicId]))}
-              />
-            ))}
-      </div>
+              ))
+            : galleryPhotos.map((photo, i) => (
+                <GalleryPhoto
+                  key={photo.publicId}
+                  photo={photo}
+                  index={i}
+                  isLoaded={loadedPhotoIds.has(photo.publicId)}
+                  onSelect={() => setSelectedPublicId(photo.publicId)}
+                  onLoad={handlePhotoLoad}
+                  onError={handlePhotoError}
+                  onHover={() => prefetchLightboxPhoto(photo, Boolean(poems[photo.publicId]))}
+                />
+              ))}
+        </motion.div>
+      </AnimatePresence>
       {selectedIndex >= 0 && (
         <Lightbox
           photos={galleryPhotos}

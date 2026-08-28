@@ -25,7 +25,11 @@ const App = () => {
         <button onClick={() => setPhotosFolderName("analog")}>Analógicas</button>
         <button onClick={() => setPhotosFolderName("digital")}>Digitales</button>
       </div>
-      <Gallery galleryPhotos={filteredPhotos} isLoadingMetadata={loading} />
+      <Gallery
+        galleryPhotos={filteredPhotos}
+        isLoadingMetadata={loading}
+        photosFolderName={photosFolderName}
+      />
     </motion.div>
   );
 };
