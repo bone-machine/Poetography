@@ -5,7 +5,9 @@
     "stylelint-high-performance-animation"
   ],
   "rules": {
-    "scale-unlimited/declaration-strict-value": [["/color$/", "fill", "stroke"]],
+    "scale-unlimited/declaration-strict-value": [
+      ["/color$/", "fill", "stroke"]
+    ],
     "csstools/value-no-unknown-custom-properties": [
       true,
       {
@@ -22,5 +24,9 @@
       }
     ]
   },
-  "extends": ["stylelint-config-standard", "stylelint-config-css-modules", "stylelint-config-recess-order"]
+  "extends": [
+    "stylelint-config-standard",
+    "stylelint-config-css-modules",
+    "stylelint-config-recess-order"
+  ]
 }
