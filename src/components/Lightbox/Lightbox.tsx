@@ -128,8 +128,8 @@ const Lightbox = ({ photos, currentIndex, poems, onNavigate, onClose }: Lightbox
       </button>
       <motion.div
         className={styles.content}
-        initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
+        initial={prefersReducedMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
       >
         <div
