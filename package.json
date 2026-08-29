@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "netlify dev --no-open",
-    "build": "tsc -b && vite build",
+    "generate:manifest": "node scripts/generate-photo-manifest.mjs",
+    "build": "npm run generate:manifest && tsc -b && vite build",
     "lint": "eslint .",
     "lint:css": "stylelint \"src/**/*.css\"",
     "format": "prettier --write .",

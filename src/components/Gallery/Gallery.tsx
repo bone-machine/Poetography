@@ -6,12 +6,21 @@ import poemsData from "../../data/poems.json";
 import type { Photo } from "../../types/photo";
 import type { Poems } from "../../types/poem";
 import { prefetchLightboxPhoto } from "../../utils/prefetchImage";
+import photoManifest from "../../data/photoManifest.json";
 
 import GalleryPhoto from "./GalleryPhoto";
 import styles from "./Gallery.module.css";
 
 const poems = poemsData as Poems;
 const METADATA_SKELETON_COUNT = 8;
+const metadataSkeletons =
+  photoManifest.length > 0
+    ? photoManifest
+    : Array.from({ length: METADATA_SKELETON_COUNT }, (_, index) => ({
+        publicId: `metadata-skeleton-${index}`,
+        width: 3,
+        height: 2,
+      }));
 
 type GalleryProps = {
   galleryPhotos: Photo[];
@@ -63,13 +72,12 @@ const Gallery = ({ galleryPhotos, isLoadingMetadata, photosFolderName }: Gallery
           transition={{ duration: 0.1, ease: "easeOut" }}
         >
           {isLoadingMetadata
-            ? Array.from({ length: METADATA_SKELETON_COUNT }, (_, i) => (
-                <div
-                  key={`metadata-skeleton-${i}`}
-                  className={styles["photo-placeholder"]}
-                  aria-hidden
-                >
-                  <div className={styles["photo-frame"]} style={{ aspectRatio: "3 / 2" }}>
+            ? metadataSkeletons.map((skeleton) => (
+                <div key={skeleton.publicId} className={styles["photo-placeholder"]} aria-hidden>
+                  <div
+                    className={styles["photo-frame"]}
+                    style={{ aspectRatio: `${skeleton.width} / ${skeleton.height}` }}
+                  >
                     <div className={styles["photo-skeleton"]} />
                   </div>
                 </div>
