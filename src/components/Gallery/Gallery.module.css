@@ -23,7 +23,7 @@
   }
 
   &:focus-visible {
-    outline: 2px solid var(--plum-8);
+    outline: 2px solid var(--gray-8);
     outline-offset: 2px;
   }
 }
@@ -40,7 +40,7 @@
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: linear-gradient(110deg, var(--plum-4) 8%, var(--plum-6) 18%, var(--plum-4) 33%);
+  background: linear-gradient(110deg, var(--gray-4) 8%, var(--gray-6) 18%, var(--gray-4) 33%);
   background-size: 200% 100%;
   animation: shimmer 1.4s linear infinite;
 }

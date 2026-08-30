@@ -126,12 +126,7 @@ const Lightbox = ({ photos, currentIndex, poems, onNavigate, onClose }: Lightbox
       >
         <X className={styles["close-icon"]} aria-hidden />
       </button>
-      <motion.div
-        className={styles.content}
-        initial={prefersReducedMotion ? false : { opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-      >
+      <div className={styles.content}>
         <div
           className={styles["image-container"]}
           onClick={onClose}
@@ -141,19 +136,6 @@ const Lightbox = ({ photos, currentIndex, poems, onNavigate, onClose }: Lightbox
             swipeRef(element);
           }}
         >
-          {!isFirst && (
-            <button
-              type="button"
-              className={`${styles["nav-button"]} ${styles["nav-button-prev"]}`}
-              aria-label="Foto anterior"
-              onClick={(event) => {
-                event.stopPropagation();
-                onNavigate(currentIndex - 1);
-              }}
-            >
-              <ChevronLeft className={styles["nav-icon"]} aria-hidden />
-            </button>
-          )}
           {imageState !== "error" && (
             <img
               className={`${styles["blurred-image"]} ${imageState === "loaded" ? styles["blurred-image-hidden"] : ""}`}
@@ -178,19 +160,6 @@ const Lightbox = ({ photos, currentIndex, poems, onNavigate, onClose }: Lightbox
             onError={() => setFailedImageUrl(imageUrl)}
             onClick={(event) => event.stopPropagation()}
           />
-          {!isLast && (
-            <button
-              type="button"
-              className={`${styles["nav-button"]} ${styles["nav-button-next"]}`}
-              aria-label="Foto siguiente"
-              onClick={(event) => {
-                event.stopPropagation();
-                onNavigate(currentIndex + 1);
-              }}
-            >
-              <ChevronRight className={styles["nav-icon"]} aria-hidden />
-            </button>
-          )}
         </div>
         {poem && (
           <div
@@ -202,7 +171,40 @@ const Lightbox = ({ photos, currentIndex, poems, onNavigate, onClose }: Lightbox
             <p className={styles["poem-text"]}>{poem.text}</p>
           </div>
         )}
-      </motion.div>
+      </div>
+      <div
+        className={styles["nav-container"]}
+        onClick={(event) => {
+          event.stopPropagation();
+        }}
+      >
+        {!isFirst && (
+          <button
+            type="button"
+            className={`${styles["nav-button"]} ${styles["nav-button-prev"]}`}
+            aria-label="Foto anterior"
+            onClick={(event) => {
+              event.stopPropagation();
+              onNavigate(currentIndex - 1);
+            }}
+          >
+            <ChevronLeft className={styles["nav-icon"]} aria-hidden />
+          </button>
+        )}
+        {!isLast && (
+          <button
+            type="button"
+            className={`${styles["nav-button"]} ${styles["nav-button-next"]}`}
+            aria-label="Foto siguiente"
+            onClick={(event) => {
+              event.stopPropagation();
+              onNavigate(currentIndex + 1);
+            }}
+          >
+            <ChevronRight className={styles["nav-icon"]} aria-hidden />
+          </button>
+        )}
+      </div>
     </motion.div>
   );
 };
