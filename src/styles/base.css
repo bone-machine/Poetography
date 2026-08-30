@@ -1,11 +1,18 @@
 @layer base {
   :root {
+    --color-text: var(--gray-12);
+    --color-text-secondary: var(--gray-11);
+    --color-background: var(--gray-1);
+    --color-background-transparent: color-mix(in oklch, #000 80%, transparent);
+    --color-background-transparent-secondary: color-mix(in oklch, #000 95%, transparent);
+    --color-border: var(--gray-8);
+
     font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
     font-weight: 400;
     font-synthesis: none;
     line-height: 1.5;
-    color: var(--plum-11);
-    background-color: var(--plum-2);
+    color: var(--color-text);
+    background-color: var(--color-background);
     text-rendering: optimizelegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -13,12 +20,12 @@
 
   a {
     font-weight: 500;
-    color: var(--plum-12);
+    color: var(--color-text);
     text-decoration: inherit;
   }
 
   a:hover {
-    color: var(--plum-9);
+    color: var(--gray-9);
   }
 
   body {
@@ -37,15 +44,15 @@
     font-family: inherit;
     font-size: 1em;
     font-weight: 500;
-    color: var(--plum-11);
+    color: var(--color-text-secondary);
     cursor: pointer;
-    background-color: var(--plum-4);
+    background-color: var(--gray-3);
     border: 1px solid transparent;
     border-radius: 8px;
     transition: border-color 0.25s;
 
     &:hover {
-      border-color: var(--plum-8);
+      border-color: var(--gray-8);
     }
   }
 

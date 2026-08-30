@@ -11,7 +11,10 @@
     "csstools/value-no-unknown-custom-properties": [
       true,
       {
-        "importFrom": ["src/styles/tokens.css"],
+        "importFrom": [
+          "src/styles/tokens.css",
+          "src/styles/base.css"
+        ],
         "resolver": {
           "moduleDirectories": ["node_modules"]
         }
