@@ -4,6 +4,8 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  background-color: var(--color-background-transparent);
 }
 
 .close-button {
@@ -36,22 +38,32 @@
 }
 
 .content {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
 }
 
-.image-container {
+.image-viewport {
   position: relative;
   display: flex;
   flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.image-container {
+  position: absolute;
+  inset: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   min-width: 0;
   min-height: 0;
   padding: 1rem;
-  background-color: var(--color-background-transparent);
 }
 
 .nav-button {
@@ -178,7 +190,6 @@
   }
 
   .image-container {
-    flex: 1;
     padding: 2rem;
   }
 
@@ -187,6 +198,9 @@
   }
 
   .poem-container {
+    position: absolute;
+    inset: 0 0 0 auto;
+    z-index: 2;
     width: min(24rem, 35vw);
     max-height: 100%;
     border-left: 1px solid rgb(255 255 255 / 15%);
@@ -194,6 +208,10 @@
 }
 
 @media (width < 768px) {
+  .nav-container {
+    display: none;
+  }
+
   .nav-button {
     display: flex;
   }

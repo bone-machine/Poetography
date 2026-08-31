@@ -4,7 +4,7 @@
     --color-text-secondary: var(--gray-11);
     --color-background: var(--gray-1);
     --color-background-transparent: color-mix(in oklch, #000 80%, transparent);
-    --color-background-transparent-secondary: color-mix(in oklch, #000 95%, transparent);
+    --color-background-transparent-secondary: color-mix(in oklch, #000 80%, transparent);
     --color-border: var(--gray-8);
 
     font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
