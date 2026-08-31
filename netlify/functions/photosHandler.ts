@@ -30,12 +30,16 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const searchQuery = photosFolderName ? `folder:${photosFolderName}` : "resource_type=image"; // Fetch all photos with resource_type=image, also could be just ''
-    const searchResult = await cloudinary.search
+    const cursor = event.queryStringParameters?.cursor;
+    const searchQuery = photosFolderName ? `folder:${photosFolderName}` : "resource_type=image";
+    const searchRequest = cloudinary.search
       .expression(searchQuery)
       .sort_by("public_id", "asc")
-      .max_results(100)
-      .execute();
+      .max_results(12);
+
+    if (cursor) searchRequest.next_cursor(cursor);
+
+    const searchResult = await searchRequest.execute();
     const photos = searchResult.resources.map(
       (file: { secure_url: string; public_id: string; width: number; height: number }) => ({
         url: file.secure_url,
@@ -50,7 +54,7 @@ export const handler: Handler = async (event) => {
         "Cache-Control": "public, max-age=3600, s-maxage=3600",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(photos),
+      body: JSON.stringify({ photos, nextCursor: searchResult.next_cursor ?? null }),
     };
   } catch (err) {
     console.error("Cloudinary error: ", err);

@@ -9,7 +9,7 @@ const FADE_DURATION_S = 0.2;
 
 const App = () => {
   const [photosFolderName, setPhotosFolderName] = useState<string | null>(null);
-  const { filteredPhotos, loading } = usePhotos(photosFolderName);
+  const { photos, loading, loadingMore, hasMore, loadMore } = usePhotos(photosFolderName);
   const prefersReducedMotion = useReducedMotion();
 
   return (
@@ -26,8 +26,11 @@ const App = () => {
         <button onClick={() => setPhotosFolderName("digital")}>Digitales</button>
       </div>
       <Gallery
-        galleryPhotos={filteredPhotos}
+        galleryPhotos={photos}
         isLoadingMetadata={loading}
+        isLoadingMore={loadingMore}
+        hasMorePhotos={hasMore}
+        onLoadMore={loadMore}
         photosFolderName={photosFolderName}
       />
     </motion.div>

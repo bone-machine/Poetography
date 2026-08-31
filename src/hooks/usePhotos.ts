@@ -1,15 +1,16 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import type { Photo } from "../types/photo";
-import { useEffect, useMemo, useState } from "react";
 import { fetchPhotos } from "../utils/fetchPhotos";
 
-const CACHE_KEY = "poetographyCache_v1";
-const CACHE_VERSION = 1;
-const CACHE_TTL_MS = 1000 * 60 * 60; // 1 hour
+const CACHE_VERSION = 4;
+const CACHE_TTL_MS = 1000 * 60 * 60;
 
 type PhotoCache = {
   version: number;
   timestamp: number;
   data: Photo[];
+  nextCursor: string | null;
 };
 
 function isPhoto(value: unknown): value is Photo {
@@ -38,21 +39,40 @@ function isPhotoCache(value: unknown): value is PhotoCache {
     Number.isFinite(cache.timestamp) &&
     cache.timestamp >= 0 &&
     Array.isArray(cache.data) &&
-    cache.data.every(isPhoto)
+    cache.data.every(isPhoto) &&
+    (typeof cache.nextCursor === "string" || cache.nextCursor === null)
   );
+}
+
+function getCacheKey(photosFolderName: string | null) {
+  return `poetographyCache_v${CACHE_VERSION}_${photosFolderName ?? "all"}`;
 }
 
 export function usePhotos(photosFolderName: string | null) {
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loadingMoreRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
+    loadingMoreRef.current = false;
 
-    const loadPhotos = async () => {
+    const loadFirstPage = async () => {
+      await Promise.resolve();
+      if (!isMounted) return;
+
+      setPhotos([]);
+      setNextCursor(null);
+      setLoading(true);
+      setError(null);
+
+      const cacheKey = getCacheKey(photosFolderName);
+
       try {
-        const cachedPhotos = localStorage.getItem(CACHE_KEY);
+        const cachedPhotos = localStorage.getItem(cacheKey);
 
         if (cachedPhotos) {
           const parsedCache: unknown = JSON.parse(cachedPhotos);
@@ -60,72 +80,72 @@ export function usePhotos(photosFolderName: string | null) {
           if (isPhotoCache(parsedCache)) {
             if (isMounted) {
               setPhotos(parsedCache.data);
+              setNextCursor(parsedCache.nextCursor);
               setLoading(false);
             }
 
-            const now = Date.now();
-            const isFreshCache =
-              parsedCache.timestamp <= now && now - parsedCache.timestamp < CACHE_TTL_MS;
-
+            const isFreshCache = Date.now() - parsedCache.timestamp < CACHE_TTL_MS;
             if (isFreshCache) return;
           } else {
-            localStorage.removeItem(CACHE_KEY);
+            localStorage.removeItem(cacheKey);
           }
         }
       } catch (cacheError) {
         console.warn("Unable to read cached photos", cacheError);
-
-        try {
-          localStorage.removeItem(CACHE_KEY);
-        } catch {
-          // Storage may be unavailable or read-only in some browser contexts.
-        }
       }
 
       try {
-        const data = await fetchPhotos();
+        const page = await fetchPhotos(photosFolderName ?? undefined);
 
         if (isMounted) {
-          setPhotos(data);
+          setPhotos(page.photos);
+          setNextCursor(page.nextCursor);
           setError(null);
+          setLoading(false);
         }
 
-        try {
-          const cache: PhotoCache = {
-            version: CACHE_VERSION,
-            timestamp: Date.now(),
-            data,
-          };
-
-          localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-        } catch (cacheError) {
-          console.warn("Unable to cache photos", cacheError);
-        }
+        const cache: PhotoCache = {
+          version: CACHE_VERSION,
+          timestamp: Date.now(),
+          data: page.photos,
+          nextCursor: page.nextCursor,
+        };
+        localStorage.setItem(cacheKey, JSON.stringify(cache));
       } catch (fetchError) {
         console.error(fetchError);
 
         if (isMounted) {
           setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch photos");
+          setLoading(false);
         }
-      } finally {
-        if (isMounted) setLoading(false);
       }
     };
 
-    loadPhotos();
+    loadFirstPage();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [photosFolderName]);
 
-  const filteredPhotos = useMemo(
-    () =>
-      photosFolderName === null
-        ? photos
-        : photos.filter((photo) => photo.publicId.startsWith(`${photosFolderName}/`)),
-    [photosFolderName, photos],
-  );
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMoreRef.current) return;
 
-  return { loading, filteredPhotos, error };
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+
+    try {
+      const page = await fetchPhotos(photosFolderName ?? undefined, nextCursor);
+      setPhotos((currentPhotos) => [...currentPhotos, ...page.photos]);
+      setNextCursor(page.nextCursor);
+    } catch (fetchError) {
+      console.error(fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch more photos");
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [nextCursor, photosFolderName]);
+
+  return { loading, loadingMore, hasMore: nextCursor !== null, photos, error, loadMore };
 }

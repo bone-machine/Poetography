@@ -74,10 +74,7 @@ const GalleryPhoto = ({
       onMouseLeave={cancelHoverPrefetch}
       aria-busy={!isLoaded}
     >
-      <div
-        className={styles["photo-frame"]}
-        style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
-      >
+      <div className={styles["photo-frame"]}>
         <div
           className={styles["photo-skeleton"]}
           aria-hidden

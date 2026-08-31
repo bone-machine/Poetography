@@ -1,13 +1,28 @@
-.gallery {
+.gallery-shell {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
+  flex: 1;
+  width: 50%;
+  min-height: 0;
+  margin-inline: auto;
+}
+
+.gallery-scroll {
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.25rem;
 }
 
 .photo-button,
 .photo-placeholder {
   display: block;
+  min-width: 0;
   padding: 0;
   border-radius: 4px;
 }
@@ -30,8 +45,8 @@
 
 .photo-frame {
   position: relative;
-  width: 200px;
-  max-width: 100%;
+  width: 100%;
+  aspect-ratio: 1;
   overflow: hidden;
   border-radius: 4px;
 }
@@ -68,9 +83,13 @@
   transition: none;
 }
 
-@media (width >= 768px) {
-  .photo-frame {
-    width: 400px;
+.load-more-sentinel {
+  height: 1px;
+}
+
+@media (width < 768px) {
+  .gallery {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -87,5 +106,9 @@
 
   .photo-image {
     transition: none;
+  }
+
+  .gallery-scroll {
+    scroll-behavior: auto;
   }
 }
