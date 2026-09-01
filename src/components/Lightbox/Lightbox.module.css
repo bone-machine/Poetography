@@ -193,6 +193,10 @@
     padding: 2rem;
   }
 
+  .content-with-poem .image-container {
+    padding-right: calc(2rem + min(24rem, 35vw));
+  }
+
   .nav-button {
     display: flex;
   }

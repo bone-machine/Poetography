@@ -254,7 +254,7 @@ const Lightbox = ({ photos, currentIndex, poems, onNavigate, onClose }: Lightbox
       >
         <X className={styles["close-icon"]} aria-hidden />
       </button>
-      <div className={styles.content}>
+      <div className={`${styles.content} ${poem ? styles["content-with-poem"] : ""}`}>
         <LightboxContent
           photo={photo}
           poem={poem}
