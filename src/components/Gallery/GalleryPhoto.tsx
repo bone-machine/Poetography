@@ -3,8 +3,8 @@ import { useEffect, useRef } from "react";
 
 import type { Photo } from "../../types/photo";
 import {
-  cloudinaryImage,
-  cloudinarySrcSet,
+  cloudinaryThumbnail,
+  cloudinaryThumbnailSrcSet,
   IMAGE_FALLBACK_WIDTH,
   IMAGE_SIZES,
 } from "../../utils/cloudinaryImage";
@@ -83,8 +83,8 @@ const GalleryPhoto = ({
         <img
           ref={imageRef}
           className={`${styles["photo-image"]} ${isLoaded ? styles["photo-image-loaded"] : ""}`}
-          src={cloudinaryImage(photo.url, photo.publicId, IMAGE_FALLBACK_WIDTH)}
-          srcSet={cloudinarySrcSet(photo.url, photo.publicId)}
+          src={cloudinaryThumbnail(photo.url, photo.publicId, IMAGE_FALLBACK_WIDTH)}
+          srcSet={cloudinaryThumbnailSrcSet(photo.url, photo.publicId)}
           sizes={IMAGE_SIZES}
           width={photo.width}
           height={photo.height}
