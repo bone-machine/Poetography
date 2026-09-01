@@ -90,6 +90,7 @@ const GalleryPhoto = ({
           height={photo.height}
           alt={`Photo ${index + 1}`}
           loading={index < 4 ? "eager" : "lazy"}
+          fetchPriority={index < 3 ? "high" : "auto"}
           onLoad={() => onLoad(photo.publicId)}
           onError={() => onError(photo.publicId)}
           data-reduced-motion={prefersReducedMotion || undefined}
