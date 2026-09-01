@@ -12,7 +12,8 @@ const albums = albumManifest as AlbumManifest;
 
 const App = () => {
   const [photosFolderName, setPhotosFolderName] = useState<string | null>(null);
-  const { photos, loading, loadingMore, hasMore, loadMore } = usePhotos(photosFolderName);
+  const { photos, loading, loadingMore, hasMore, loadMore, error, retry } =
+    usePhotos(photosFolderName);
   const prefersReducedMotion = useReducedMotion();
 
   return (
@@ -52,6 +53,8 @@ const App = () => {
         isLoadingMore={loadingMore}
         hasMorePhotos={hasMore}
         onLoadMore={loadMore}
+        error={error}
+        onRetry={retry}
         photosFolderName={photosFolderName}
       />
     </motion.div>

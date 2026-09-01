@@ -19,6 +19,8 @@ type GalleryProps = {
   isLoadingMore: boolean;
   hasMorePhotos: boolean;
   onLoadMore: () => void;
+  error: string | null;
+  onRetry: () => void;
   photosFolderName: string | null;
 };
 
@@ -28,6 +30,8 @@ const Gallery = ({
   isLoadingMore,
   hasMorePhotos,
   onLoadMore,
+  error,
+  onRetry,
   photosFolderName,
 }: GalleryProps) => {
   const prefersReducedMotion = useReducedMotion();
@@ -91,11 +95,43 @@ const Gallery = ({
           transition={{ duration: 0.1, ease: "easeOut" }}
         >
           <div ref={scrollContainerRef} className={styles["gallery-scroll"]}>
-            <div className={styles.gallery}>
-              {isLoadingMetadata
-                ? Array.from({ length: PAGE_SIZE }, (_, index) => (
+            {error && !galleryPhotos.length && !isLoadingMetadata ? (
+              <div className={styles["gallery-error"]} role="alert">
+                <p>No se pudo cargar la galería de fotos.</p>
+                <button type="button" onClick={onRetry}>
+                  Reintentar
+                </button>
+              </div>
+            ) : (
+              <div className={styles.gallery}>
+                {isLoadingMetadata
+                  ? Array.from({ length: PAGE_SIZE }, (_, index) => (
+                      <div
+                        key={`skeleton-${index}`}
+                        className={styles["photo-placeholder"]}
+                        aria-hidden
+                      >
+                        <div className={styles["photo-frame"]}>
+                          <div className={styles["photo-skeleton"]} />
+                        </div>
+                      </div>
+                    ))
+                  : galleryPhotos.map((photo, index) => (
+                      <GalleryPhoto
+                        key={photo.publicId}
+                        photo={photo}
+                        index={index}
+                        isLoaded={loadedPhotoIds.has(photo.publicId)}
+                        onSelect={() => setSelectedPublicId(photo.publicId)}
+                        onLoad={handlePhotoLoad}
+                        onError={handlePhotoError}
+                        onHover={() => prefetchLightboxPhoto(photo, Boolean(poems[photo.publicId]))}
+                      />
+                    ))}
+                {isLoadingMore &&
+                  Array.from({ length: PAGE_SIZE }, (_, index) => (
                     <div
-                      key={`skeleton-${index}`}
+                      key={`loading-skeleton-${index}`}
                       className={styles["photo-placeholder"]}
                       aria-hidden
                     >
@@ -103,32 +139,9 @@ const Gallery = ({
                         <div className={styles["photo-skeleton"]} />
                       </div>
                     </div>
-                  ))
-                : galleryPhotos.map((photo, index) => (
-                    <GalleryPhoto
-                      key={photo.publicId}
-                      photo={photo}
-                      index={index}
-                      isLoaded={loadedPhotoIds.has(photo.publicId)}
-                      onSelect={() => setSelectedPublicId(photo.publicId)}
-                      onLoad={handlePhotoLoad}
-                      onError={handlePhotoError}
-                      onHover={() => prefetchLightboxPhoto(photo, Boolean(poems[photo.publicId]))}
-                    />
                   ))}
-              {isLoadingMore &&
-                Array.from({ length: PAGE_SIZE }, (_, index) => (
-                  <div
-                    key={`loading-skeleton-${index}`}
-                    className={styles["photo-placeholder"]}
-                    aria-hidden
-                  >
-                    <div className={styles["photo-frame"]}>
-                      <div className={styles["photo-skeleton"]} />
-                    </div>
-                  </div>
-                ))}
-            </div>
+              </div>
+            )}
             <div ref={sentinelRef} className={styles["load-more-sentinel"]} aria-hidden />
           </div>
         </motion.div>

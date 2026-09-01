@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Photo } from "../types/photo";
 import { fetchPhotos } from "../utils/fetchPhotos";
 
-const CACHE_VERSION = 5;
+const CACHE_VERSION = 6;
 const CACHE_TTL_MS = 1000 * 60 * 60;
 
 type PhotoCache = {
@@ -54,6 +54,7 @@ export function usePhotos(photosFolderName: string | null) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const loadingMoreRef = useRef(false);
   const photosRef = useRef<Photo[]>([]);
 
@@ -130,7 +131,7 @@ export function usePhotos(photosFolderName: string | null) {
     return () => {
       isMounted = false;
     };
-  }, [photosFolderName]);
+  }, [photosFolderName, retryCount]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMoreRef.current) return;
@@ -165,5 +166,7 @@ export function usePhotos(photosFolderName: string | null) {
     }
   }, [nextCursor, photosFolderName]);
 
-  return { loading, loadingMore, hasMore: nextCursor !== null, photos, error, loadMore };
+  const retry = useCallback(() => setRetryCount((count) => count + 1), []);
+
+  return { loading, loadingMore, hasMore: nextCursor !== null, photos, error, loadMore, retry };
 }
