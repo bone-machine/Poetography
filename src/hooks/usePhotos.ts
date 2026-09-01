@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Photo } from "../types/photo";
 import { fetchPhotos } from "../utils/fetchPhotos";
 
-const CACHE_VERSION = 4;
+const CACHE_VERSION = 5;
 const CACHE_TTL_MS = 1000 * 60 * 60;
 
 type PhotoCache = {
@@ -55,6 +55,7 @@ export function usePhotos(photosFolderName: string | null) {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
+  const photosRef = useRef<Photo[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -65,6 +66,7 @@ export function usePhotos(photosFolderName: string | null) {
       if (!isMounted) return;
 
       setPhotos([]);
+      photosRef.current = [];
       setNextCursor(null);
       setLoading(true);
       setError(null);
@@ -80,6 +82,7 @@ export function usePhotos(photosFolderName: string | null) {
           if (isPhotoCache(parsedCache)) {
             if (isMounted) {
               setPhotos(parsedCache.data);
+              photosRef.current = parsedCache.data;
               setNextCursor(parsedCache.nextCursor);
               setLoading(false);
             }
@@ -99,6 +102,7 @@ export function usePhotos(photosFolderName: string | null) {
 
         if (isMounted) {
           setPhotos(page.photos);
+          photosRef.current = page.photos;
           setNextCursor(page.nextCursor);
           setError(null);
           setLoading(false);
@@ -136,8 +140,22 @@ export function usePhotos(photosFolderName: string | null) {
 
     try {
       const page = await fetchPhotos(photosFolderName ?? undefined, nextCursor);
-      setPhotos((currentPhotos) => [...currentPhotos, ...page.photos]);
+      const nextPhotos = [...photosRef.current, ...page.photos];
+      photosRef.current = nextPhotos;
+      setPhotos(nextPhotos);
       setNextCursor(page.nextCursor);
+
+      const cache: PhotoCache = {
+        version: CACHE_VERSION,
+        timestamp: Date.now(),
+        data: nextPhotos,
+        nextCursor: page.nextCursor,
+      };
+      try {
+        localStorage.setItem(getCacheKey(photosFolderName), JSON.stringify(cache));
+      } catch (cacheError) {
+        console.warn("Unable to cache more photos", cacheError);
+      }
     } catch (fetchError) {
       console.error(fetchError);
       setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch more photos");

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "netlify dev --no-open",
-    "build": "tsc -b && vite build",
+    "generate:albums": "node --env-file-if-exists=.env scripts/generate-album-manifest.mjs",
+    "build": "npm run generate:albums && tsc -b && vite build",
     "lint": "eslint .",
     "lint:css": "stylelint \"src/**/*.css\"",
     "format": "prettier --write .",

@@ -1,12 +1,14 @@
 import { Handler } from "@netlify/functions";
 import { v2 as cloudinary } from "cloudinary";
 
-const ALLOWED_PHOTO_FOLDERS = ["analog", "digital"] as const;
+const ROOT_PHOTO_FOLDERS = ["analog", "digital"] as const;
 
-type PhotoFolderName = (typeof ALLOWED_PHOTO_FOLDERS)[number];
-
-function isPhotoFolderName(value: string): value is PhotoFolderName {
-  return (ALLOWED_PHOTO_FOLDERS as readonly string[]).includes(value);
+function isPhotoFolderName(value: string): boolean {
+  const [root, ...segments] = value.split("/");
+  return (
+    ROOT_PHOTO_FOLDERS.includes(root as (typeof ROOT_PHOTO_FOLDERS)[number]) &&
+    segments.every((segment) => /^[a-zA-Z0-9_-]+$/.test(segment))
+  );
 }
 
 cloudinary.config({
@@ -31,7 +33,9 @@ export const handler: Handler = async (event) => {
     }
 
     const cursor = event.queryStringParameters?.cursor;
-    const searchQuery = photosFolderName ? `folder:${photosFolderName}` : "resource_type=image";
+    const searchQuery = photosFolderName
+      ? `(folder:${photosFolderName} OR folder:${photosFolderName}/*) AND resource_type:image`
+      : "resource_type:image";
     const searchRequest = cloudinary.search
       .expression(searchQuery)
       .sort_by("public_id", "asc")
