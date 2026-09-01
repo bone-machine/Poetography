@@ -271,44 +271,30 @@ const Lightbox = ({ photos, currentIndex, poems, onNavigate, onClose }: Lightbox
           event.stopPropagation();
         }}
       >
-        <AnimatePresence initial={false}>
-          {!isFirst && (
-            <motion.button
-              key="previous"
-              type="button"
-              className={`${styles["nav-button"]} ${styles["nav-button-prev"]}`}
-              aria-label="Foto anterior"
-              initial={prefersReducedMotion ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={prefersReducedMotion ? undefined : { opacity: 0 }}
-              transition={{ duration: prefersReducedMotion ? 0 : 0.1, ease: "easeOut" }}
-              onClick={(event) => {
-                event.stopPropagation();
-                navigateTo(currentIndex - 1);
-              }}
-            >
-              <ChevronLeft className={styles["nav-icon"]} aria-hidden />
-            </motion.button>
-          )}
-          {!isLast && (
-            <motion.button
-              key="next"
-              type="button"
-              className={`${styles["nav-button"]} ${styles["nav-button-next"]}`}
-              aria-label="Foto siguiente"
-              initial={prefersReducedMotion ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={prefersReducedMotion ? undefined : { opacity: 0 }}
-              transition={{ duration: prefersReducedMotion ? 0 : 0.1, ease: "easeOut" }}
-              onClick={(event) => {
-                event.stopPropagation();
-                navigateTo(currentIndex + 1);
-              }}
-            >
-              <ChevronRight className={styles["nav-icon"]} aria-hidden />
-            </motion.button>
-          )}
-        </AnimatePresence>
+        <button
+          type="button"
+          className={`${styles["nav-button"]} ${styles["nav-button-prev"]}`}
+          aria-label="Foto anterior"
+          disabled={isFirst}
+          onClick={(event) => {
+            event.stopPropagation();
+            navigateTo(currentIndex - 1);
+          }}
+        >
+          <ChevronLeft className={styles["nav-icon"]} aria-hidden />
+        </button>
+        <button
+          type="button"
+          className={`${styles["nav-button"]} ${styles["nav-button-next"]}`}
+          aria-label="Foto siguiente"
+          disabled={isLast}
+          onClick={(event) => {
+            event.stopPropagation();
+            navigateTo(currentIndex + 1);
+          }}
+        >
+          <ChevronRight className={styles["nav-icon"]} aria-hidden />
+        </button>
       </div>
     </motion.div>
   );
