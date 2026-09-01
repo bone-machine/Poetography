@@ -5,9 +5,20 @@ export type PhotosPage = {
   nextCursor: string | null;
 };
 
+export class PhotosFetchError extends Error {
+  status: number;
+
+  constructor(status: number) {
+    super(`Failed to fetch photos (${status})`);
+    this.name = "PhotosFetchError";
+    this.status = status;
+  }
+}
+
 export async function fetchPhotos(
   photosFolderName?: string,
   cursor?: string | null,
+  signal?: AbortSignal,
 ): Promise<PhotosPage> {
   const params = new URLSearchParams();
   if (photosFolderName) params.set("photosFolderName", photosFolderName);
@@ -17,7 +28,7 @@ export async function fetchPhotos(
   const url = query
     ? `/.netlify/functions/photosHandler?${query}`
     : "/.netlify/functions/photosHandler";
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch photos");
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new PhotosFetchError(res.status);
   return (await res.json()) as PhotosPage;
 }

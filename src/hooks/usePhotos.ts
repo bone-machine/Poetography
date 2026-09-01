@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Photo } from "../types/photo";
-import { fetchPhotos } from "../utils/fetchPhotos";
+import { fetchPhotos, PhotosFetchError, type PhotosPage } from "../utils/fetchPhotos";
 
 const CACHE_VERSION = 6;
 const CACHE_TTL_MS = 1000 * 60 * 60;
+const MAX_PAGINATION_RETRIES = 2;
+const PAGINATION_RETRY_DELAYS_MS = [500, 1500];
 
 type PhotoCache = {
   version: number;
@@ -48,6 +50,34 @@ function getCacheKey(photosFolderName: string | null) {
   return `poetographyCache_v${CACHE_VERSION}_${photosFolderName ?? "all"}`;
 }
 
+function isRetryableError(error: unknown) {
+  if (error instanceof DOMException && error.name === "AbortError") return false;
+
+  if (error instanceof PhotosFetchError) {
+    return error.status === 408 || error.status === 429 || error.status >= 500;
+  }
+
+  return true;
+}
+
+function waitForRetry(delayMs: number, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      signal.removeEventListener("abort", handleAbort);
+      resolve();
+    }, delayMs);
+
+    const handleAbort = () => {
+      window.clearTimeout(timeoutId);
+      reject(new DOMException("Request aborted", "AbortError"));
+    };
+
+    signal.addEventListener("abort", handleAbort, { once: true });
+
+    if (signal.aborted) handleAbort();
+  });
+}
+
 export function usePhotos(photosFolderName: string | null) {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,22 +85,31 @@ export function usePhotos(photosFolderName: string | null) {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [paginationRetryAvailable, setPaginationRetryAvailable] = useState(false);
   const loadingMoreRef = useRef(false);
   const photosRef = useRef<Photo[]>([]);
+  const requestIdRef = useRef(0);
+  const activeControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    const requestId = ++requestIdRef.current;
+    activeControllerRef.current?.abort();
+
+    const controller = new AbortController();
+    activeControllerRef.current = controller;
     let isMounted = true;
     loadingMoreRef.current = false;
 
     const loadFirstPage = async () => {
       await Promise.resolve();
-      if (!isMounted) return;
+      if (!isMounted || requestId !== requestIdRef.current) return;
 
       setPhotos([]);
       photosRef.current = [];
       setNextCursor(null);
       setLoading(true);
       setError(null);
+      setPaginationRetryAvailable(false);
 
       const cacheKey = getCacheKey(photosFolderName);
 
@@ -81,7 +120,7 @@ export function usePhotos(photosFolderName: string | null) {
           const parsedCache: unknown = JSON.parse(cachedPhotos);
 
           if (isPhotoCache(parsedCache)) {
-            if (isMounted) {
+            if (isMounted && requestId === requestIdRef.current) {
               setPhotos(parsedCache.data);
               photosRef.current = parsedCache.data;
               setNextCursor(parsedCache.nextCursor);
@@ -99,9 +138,9 @@ export function usePhotos(photosFolderName: string | null) {
       }
 
       try {
-        const page = await fetchPhotos(photosFolderName ?? undefined);
+        const page = await fetchPhotos(photosFolderName ?? undefined, undefined, controller.signal);
 
-        if (isMounted) {
+        if (isMounted && requestId === requestIdRef.current) {
           setPhotos(page.photos);
           photosRef.current = page.photos;
           setNextCursor(page.nextCursor);
@@ -115,14 +154,18 @@ export function usePhotos(photosFolderName: string | null) {
           data: page.photos,
           nextCursor: page.nextCursor,
         };
-        localStorage.setItem(cacheKey, JSON.stringify(cache));
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(cache));
+        } catch (cacheError) {
+          console.warn("Unable to cache photos", cacheError);
+        }
       } catch (fetchError) {
+        if (controller.signal.aborted || !isMounted || requestId !== requestIdRef.current) return;
+
         console.error(fetchError);
 
-        if (isMounted) {
-          setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch photos");
-          setLoading(false);
-        }
+        setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch photos");
+        setLoading(false);
       }
     };
 
@@ -130,21 +173,50 @@ export function usePhotos(photosFolderName: string | null) {
 
     return () => {
       isMounted = false;
+      controller.abort();
+      if (activeControllerRef.current === controller) activeControllerRef.current = null;
     };
   }, [photosFolderName, retryCount]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMoreRef.current) return;
 
+    const requestId = requestIdRef.current;
+    const controller = new AbortController();
+    activeControllerRef.current?.abort();
+    activeControllerRef.current = controller;
     loadingMoreRef.current = true;
     setLoadingMore(true);
+    setPaginationRetryAvailable(false);
 
     try {
-      const page = await fetchPhotos(photosFolderName ?? undefined, nextCursor);
+      let page: PhotosPage | undefined;
+
+      for (let attempt = 0; attempt <= MAX_PAGINATION_RETRIES; attempt += 1) {
+        try {
+          page = await fetchPhotos(photosFolderName ?? undefined, nextCursor, controller.signal);
+          break;
+        } catch (fetchError) {
+          if (
+            controller.signal.aborted ||
+            requestId !== requestIdRef.current ||
+            !isRetryableError(fetchError) ||
+            attempt === MAX_PAGINATION_RETRIES
+          ) {
+            throw fetchError;
+          }
+
+          await waitForRetry(PAGINATION_RETRY_DELAYS_MS[attempt], controller.signal);
+        }
+      }
+
+      if (!page || controller.signal.aborted || requestId !== requestIdRef.current) return;
+
       const nextPhotos = [...photosRef.current, ...page.photos];
       photosRef.current = nextPhotos;
       setPhotos(nextPhotos);
       setNextCursor(page.nextCursor);
+      setPaginationRetryAvailable(false);
 
       const cache: PhotoCache = {
         version: CACHE_VERSION,
@@ -158,15 +230,40 @@ export function usePhotos(photosFolderName: string | null) {
         console.warn("Unable to cache more photos", cacheError);
       }
     } catch (fetchError) {
+      if (
+        controller.signal.aborted ||
+        requestId !== requestIdRef.current ||
+        !isRetryableError(fetchError)
+      ) {
+        return;
+      }
+
       console.error(fetchError);
-      setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch more photos");
+      setPaginationRetryAvailable(true);
     } finally {
-      loadingMoreRef.current = false;
-      setLoadingMore(false);
+      if (requestId === requestIdRef.current) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
+      if (activeControllerRef.current === controller) activeControllerRef.current = null;
     }
   }, [nextCursor, photosFolderName]);
 
   const retry = useCallback(() => setRetryCount((count) => count + 1), []);
+  const retryLoadMore = useCallback(() => {
+    setPaginationRetryAvailable(false);
+    void loadMore();
+  }, [loadMore]);
 
-  return { loading, loadingMore, hasMore: nextCursor !== null, photos, error, loadMore, retry };
+  return {
+    loading,
+    loadingMore,
+    hasMore: nextCursor !== null,
+    photos,
+    error,
+    loadMore,
+    retry,
+    paginationRetryAvailable,
+    retryLoadMore,
+  };
 }

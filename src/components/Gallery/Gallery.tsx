@@ -21,6 +21,8 @@ type GalleryProps = {
   onLoadMore: () => void;
   error: string | null;
   onRetry: () => void;
+  paginationRetryAvailable: boolean;
+  onRetryLoadMore: () => void;
   photosFolderName: string | null;
 };
 
@@ -32,6 +34,8 @@ const Gallery = ({
   onLoadMore,
   error,
   onRetry,
+  paginationRetryAvailable,
+  onRetryLoadMore,
   photosFolderName,
 }: GalleryProps) => {
   const prefersReducedMotion = useReducedMotion();
@@ -66,7 +70,14 @@ const Gallery = ({
   useEffect(() => {
     const sentinel = sentinelRef.current;
     const scrollContainer = scrollContainerRef.current;
-    if (!sentinel || !scrollContainer || !hasMorePhotos || isLoadingMore) return;
+    if (
+      !sentinel ||
+      !scrollContainer ||
+      !hasMorePhotos ||
+      isLoadingMore ||
+      paginationRetryAvailable
+    )
+      return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -77,7 +88,7 @@ const Gallery = ({
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [galleryPhotos.length, hasMorePhotos, isLoadingMore, onLoadMore]);
+  }, [galleryPhotos.length, hasMorePhotos, isLoadingMore, onLoadMore, paginationRetryAvailable]);
 
   const galleryKey = photosFolderName ?? "all-photos";
 
@@ -141,6 +152,15 @@ const Gallery = ({
                     </div>
                   ))}
               </div>
+            )}
+            {paginationRetryAvailable && (
+              <button
+                type="button"
+                className={styles["pagination-retry"]}
+                onClick={onRetryLoadMore}
+              >
+                Reintentar
+              </button>
             )}
             <div ref={sentinelRef} className={styles["load-more-sentinel"]} aria-hidden />
           </div>
