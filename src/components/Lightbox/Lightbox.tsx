@@ -290,6 +290,24 @@ const Lightbox = ({ photos, currentIndex, poems, onNavigate, onClose }: Lightbox
       animate={{ opacity: 1 }}
       transition={{ duration: 0.1, ease: "easeOut" }}
     >
+      <AnimatePresence initial={false} mode="sync">
+        <motion.div
+          key={photo.publicId}
+          className={styles["lightbox-background"]}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          aria-hidden
+        >
+          <img
+            className={styles["lightbox-background-image"]}
+            src={cloudinaryImage(photo.url, photo.publicId, 80)}
+            alt=""
+          />
+        </motion.div>
+      </AnimatePresence>
+      <div className={styles["lightbox-background-scrim"]} aria-hidden />
       <button
         type="button"
         className={styles["close-button"]}
