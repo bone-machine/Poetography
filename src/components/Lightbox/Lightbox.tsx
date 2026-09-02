@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, LoaderCircle, X } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, LoaderCircle, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSwipeable } from "react-swipeable";
@@ -128,6 +128,17 @@ const LightboxContent = ({
 }: LightboxContentProps) => {
   const prefersReducedMotion = useReducedMotion();
   const poemRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia("(width < 768px)").matches);
+  const [visiblePoemPhotoId, setVisiblePoemPhotoId] = useState<string | null>(null);
+  const isPoemVisible = visiblePoemPhotoId === photo.publicId;
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(width < 768px)");
+    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+
+    mediaQuery.addEventListener("change", updateIsMobile);
+    return () => mediaQuery.removeEventListener("change", updateIsMobile);
+  }, []);
 
   useEffect(() => {
     poemRef.current?.scrollTo(0, 0);
@@ -145,25 +156,58 @@ const LightboxContent = ({
             navigationDirection={navigationDirection}
           />
         </AnimatePresence>
+        <AnimatePresence initial={false}>
+          {poem && (
+            <motion.button
+              key={`poem-toggle-${photo.publicId}`}
+              type="button"
+              className={styles["poem-toggle"]}
+              aria-label={isPoemVisible ? "Ocultar poema" : "Mostrar poema"}
+              aria-expanded={isPoemVisible}
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 8, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={prefersReducedMotion ? undefined : { opacity: 0, y: 8, scale: 0.9 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.2, ease: "easeOut" }}
+              onClick={(event) => {
+                event.stopPropagation();
+                setVisiblePoemPhotoId((visiblePhotoId) =>
+                  visiblePhotoId === photo.publicId ? null : photo.publicId,
+                );
+              }}
+            >
+              <BookOpen className={styles["poem-toggle-icon"]} aria-hidden />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
-      {poem && (
-        <motion.div
-          key={photo.publicId}
-          ref={poemRef}
-          className={styles["poem-container"]}
-          onClick={(event) => event.stopPropagation()}
-          initial={prefersReducedMotion || !shouldAnimatePoem ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{
-            duration: prefersReducedMotion || !shouldAnimatePoem ? 0 : 0.2,
-            ease: "easeOut",
-            delay: prefersReducedMotion || !shouldAnimatePoem ? 0 : 0.15,
-          }}
-        >
-          {poem.title && <h2 className={styles["poem-title"]}>{poem.title}</h2>}
-          <p className={styles["poem-text"]}>{poem.text}</p>
-        </motion.div>
-      )}
+      <AnimatePresence initial={false} mode="wait">
+        {poem && (!isMobile || isPoemVisible) && (
+          <motion.div
+            key={photo.publicId}
+            ref={poemRef}
+            className={styles["poem-container"]}
+            onClick={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
+            onTouchMove={(event) => event.stopPropagation()}
+            onTouchEnd={(event) => event.stopPropagation()}
+            initial={
+              prefersReducedMotion || (!shouldAnimatePoem && !isPoemVisible)
+                ? false
+                : { opacity: 0 }
+            }
+            animate={{ opacity: 1 }}
+            exit={prefersReducedMotion ? undefined : { opacity: 0 }}
+            transition={{
+              duration: prefersReducedMotion || (!shouldAnimatePoem && !isPoemVisible) ? 0 : 0.2,
+              ease: "easeOut",
+              delay: isMobile || prefersReducedMotion || !shouldAnimatePoem ? 0 : 0.15,
+            }}
+          >
+            {poem.title && <h2 className={styles["poem-title"]}>{poem.title}</h2>}
+            <p className={styles["poem-text"]}>{poem.text}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
