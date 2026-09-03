@@ -6,7 +6,13 @@ import type { SwipeableHandlers } from "react-swipeable";
 
 import type { Photo } from "../../types/photo";
 import type { Poems } from "../../types/poem";
-import { cloudinaryImage } from "../../utils/cloudinaryImage";
+import {
+  cloudinaryImage,
+  cloudinaryThumbnail,
+  cloudinaryThumbnailSrcSet,
+  IMAGE_FALLBACK_WIDTH,
+  IMAGE_SIZES,
+} from "../../utils/cloudinaryImage";
 import { getLightboxImageUrl, prefetchAdjacentLightboxPhotos } from "../../utils/prefetchImage";
 
 import styles from "./Lightbox.module.css";
@@ -294,15 +300,19 @@ const Lightbox = ({ photos, currentIndex, poems, onNavigate, onClose }: Lightbox
         <motion.div
           key={photo.publicId}
           className={styles["lightbox-background"]}
-          initial={{ opacity: 0 }}
+          initial={prefersReducedMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
           aria-hidden
         >
+          {/* We reuse the GalleryPhoto component thumbnail here to avoid an API call to Cloudinary for the background image.
+          The thumbnail is already cached in the browser from the Gallery view. */}
           <img
             className={styles["lightbox-background-image"]}
-            src={cloudinaryImage(photo.url, photo.publicId, 80)}
+            src={cloudinaryThumbnail(photo.url, photo.publicId, IMAGE_FALLBACK_WIDTH)}
+            srcSet={cloudinaryThumbnailSrcSet(photo.url, photo.publicId)}
+            sizes={IMAGE_SIZES}
             alt=""
           />
         </motion.div>
