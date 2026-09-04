@@ -11,16 +11,14 @@ App filter state
         ↓
 usePhotos(folder)
         ↓
-Netlify photosHandler
+Build-time photo manifest (photoManifest.json)
         ↓
-Cloudinary Search API
-        ↓
-Photo metadata pages
+In-memory photo array (synchronous, no network)
         ↓
 Gallery → Lightbox
 ```
 
-`App.tsx` owns the selected folder. `usePhotos` owns metadata loading, caching, pagination, retries, and request cancellation. `Gallery` owns the scrollable presentation and selection. `Lightbox` owns photo navigation and poem presentation.
+`App.tsx` owns the selected folder. `usePhotos` loads photo metadata synchronously from the build-time manifest, paginates client-side through the in-memory array using `flushSync` to guarantee loading skeletons render, and no longer fetches from the Netlify function or Cloudinary Search API during normal browsing. `Gallery` owns the scrollable presentation and selection. `Lightbox` owns photo navigation and poem presentation.
 
 ## Cloudinary organization
 
@@ -39,7 +37,7 @@ analog/fomapan200_april_2023
 digital/some-future-album
 ```
 
-`photosHandler.ts` accepts only supported roots and safe path segments. Root queries include nested folders. The build-time manifest generator discovers folders from all Cloudinary image resources and writes `src/data/albums.json`.
+`photosHandler.ts` accepts only supported roots and safe path segments. Root queries include nested folders. The build-time manifest generator discovers folders from all Cloudinary image resources and writes `src/data/photoManifest.json`.
 
 ## Gallery layout and image delivery
 
@@ -55,22 +53,22 @@ This is important because `object-fit: cover` alone can make very wide source im
 
 The Lightbox uses separate aspect-ratio-preserving `c_limit` transformations sized according to the available viewport/layout. Gallery and Lightbox transformations should not be casually merged: their aspect-ratio and sizing requirements are different.
 
-## Metadata cache and pagination
+## Metadata loading and pagination
 
-The cache is stored in `localStorage` under a versioned key containing the selected folder. Each cache entry stores:
+Photo metadata is embedded in the build-time manifest (`src/data/photoManifest.json`) as two arrays:
 
-```text
-version
-timestamp
-data: Photo[]
-nextCursor
-```
+- `allPhotos`: ordered photos for the unfiltered "All" view.
+- `photosByFolder`: ordered photos per root folder and nested album.
 
-The first page can be displayed from cache while stale data is refreshed. Pagination appends to the current metadata list and updates the cache. A bottom `IntersectionObserver` sentinel requests the next cursor when it approaches the scroll viewport.
+`usePhotos` loads the appropriate array synchronously based on the selected folder (or the "All" view). There is no runtime network request for metadata during normal browsing.
 
-Initial failures replace the empty Gallery with a prominent retry state. Pagination failures leave current photos visible, retry transient failures twice automatically, and only then expose a small retry link.
+Pagination is client-side array slicing in PAGE_SIZE batches (12 photos per page). The `loadMore` function uses `flushSync` from `react-dom` to force a synchronous render of the loading skeleton before photo updates, ensuring the loading state is always visible despite React's automatic batching.
 
-Requests use both `AbortController` and a monotonically increasing request ID. Cancellation prevents unnecessary work; request identity prevents a late response from an old filter from updating the current Gallery.
+The mount effect uses `queueMicrotask` to populate the manifest data, allowing React to render the loading skeleton on initial mount and folder switches before the data is exposed.
+
+The `photosHandler` Netlify function and `fetchPhotos` utility are retained but unused during normal browsing. They exist as the server-side Cloudinary credential boundary for potential webhook flows or debugging.
+
+The `retry` callback is now a no-op kept for interface compatibility, since there are no transient failures to retry in the synchronous pagination model.
 
 ## Lightbox layers
 
@@ -101,7 +99,7 @@ Styles are CSS Modules. Motion uses the `motion/react` package. `prefers-reduced
 ## Important boundaries
 
 - Keep Cloudinary credentials in Netlify-only code.
-- Keep generated `src/data/albums.json` build-owned; do not hand-edit it unless intentionally testing.
+- Keep generated `src/data/photoManifest.json` build-owned; do not hand-edit it unless intentionally testing.
 - Keep local poem keys synchronized with exact photo `publicId` values.
 - Preserve the distinction between Gallery thumbnail transforms and Lightbox transforms.
 - Avoid changing unrelated formatting or discarding user work in a dirty worktree.

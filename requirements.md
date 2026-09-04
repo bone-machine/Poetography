@@ -16,9 +16,8 @@ Poetography is a photographic portfolio. It presents curated digital and analog 
 - Show loading skeletons while photo metadata or additional pages are loading.
 - Open a selected photo in the Lightbox.
 - Load photos incrementally as the user approaches the bottom of the Gallery.
-- Display a clear retry action when the initial metadata request fails.
-- Keep already-loaded photos visible when a pagination request fails.
-- Retry transient pagination failures automatically before exposing a subtle manual retry link.
+- Ensure the loading skeleton is always visible during pagination by using `flushSync` from `react-dom` to force a synchronous render before photo updates. This prevents React's automatic batching from hiding the loading state.
+- Use a no-op retry action kept for interface compatibility, since the synchronous pagination model has no transient failures to retry.
 
 ### Filters and albums
 

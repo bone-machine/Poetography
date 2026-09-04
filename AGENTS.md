@@ -4,7 +4,7 @@
 
 Poetography is a React 19 + TypeScript + Vite portfolio for displaying photographic work from Cloudinary. Photos are organized into `analog` and `digital` Cloudinary folders, with support for nested album folders. Some photos have associated poems that are stored locally and displayed in the Lightbox.
 
-The application is deployed to Netlify. Netlify hosts the frontend build and the serverless function that queries Cloudinary’s Search API. Cloudinary credentials must remain server-side.
+The application is deployed to Netlify. Netlify hosts the frontend build. Cloudinary credentials are used only during the build process to generate the photo manifest and must remain server-side (in Netlify environment variables, never committed to repository).
 
 ## Main architecture
 
@@ -14,14 +14,16 @@ The application is deployed to Netlify. Netlify hosts the frontend build and the
   - Calls `usePhotos` and passes metadata/loading/error/pagination state to `Gallery`.
 
 - `src/hooks/usePhotos.ts`
-  - Loads the first photo page and subsequent pages.
-  - Uses 12 photos per server page.
-  - Caches photo metadata in `localStorage`, separated by folder and cache version.
-  - Uses a one-hour cache TTL.
-  - Keeps stale cached photos visible if a refresh request fails.
-  - Uses `AbortController` and request IDs so stale requests cannot overwrite a newer folder/filter selection.
-  - Automatically retries transient pagination failures twice after the initial attempt, with short backoff delays.
-  - Exposes a subtle manual pagination retry link only after automatic retries are exhausted.
+  - Loads photo metadata synchronously from the build-time manifest for the selected folder (or the "All" view).
+  - Paginates client-side through the in-memory photo array in PAGE_SIZE batches (12 photos per page).
+  - Shows loading skeletons on initial mount and on folder switches until the manifest data is exposed.
+  - Uses `flushSync` from `react-dom` in the `loadMore` function to guarantee the loading skeleton renders before pagination completes, preventing React's automatic batching from hiding the loading state.
+  - Uses `queueMicrotask` in the mount effect to populate the manifest data, allowing React to render the loading skeleton on initial mount and folder switches before the data is exposed.
+  - Keeps the IntersectionObserver-based load-more pattern from Gallery component.
+  - No longer fetches photo metadata from the Netlify function or Cloudinary Search API during normal browsing.
+  - Eliminated localStorage caching, AbortController for metadata requests, retry loops, and cursor-based pagination—all replaced by simple in-memory array operations.
+  - The `photosHandler` Netlify function is retained but unused during normal operation; it exists as the server-side Cloudinary credential boundary for potential future webhook flows or debugging.
+  - The `retry` callback is now a no-op kept for interface compatibility since there are no transient failures to retry in the synchronous pagination model.
 
 - `src/components/Gallery/Gallery.tsx`
   - Owns the internal scrollable gallery viewport.
@@ -65,8 +67,9 @@ The application is deployed to Netlify. Netlify hosts the frontend build and the
 
 - `scripts/generate-album-manifest.mjs`
   - Runs during builds before TypeScript/Vite compilation.
-  - Queries Cloudinary server-side, discovers nested folders, and writes `src/data/albums.json`.
-  - The generated manifest contains localized root labels and humanized album labels.
+  - Queries Cloudinary server-side, discovers nested folders, and writes `src/data/photoManifest.json`.
+  - The generated manifest now contains localized root labels, humanized album labels, an ordered `allPhotos` array for the unfiltered view, and a `photosByFolder` map with ordered photos per root and nested album.
+  - Photo metadata in the manifest is the runtime source of truth for gallery/lightbox browsing; the Netlify photosHandler remains the server-side Cloudinary credential boundary.
 
 ## Data and content conventions
 
@@ -112,7 +115,8 @@ Prettier is already used by the project; avoid unrelated formatting churn. CSS m
 
 - Gallery thumbnails are square, centered crops. Do not revert to aspect-ratio-preserving thumbnail URLs while retaining `object-fit: cover`; very wide originals can then be upscaled in their short dimension and appear blurry.
 - The Gallery itself is the vertically scrollable area; the application viewport remains fixed.
-- Pagination should be quiet: existing photos stay visible, transient failures retry automatically, and a small retry link appears only after repeated failure. Do not add an alarming “more photos unavailable” message without explicit approval.
+- Pagination should be quiet: new photos are paginated from the in-memory manifest array as the user scrolls. Since pagination is now synchronous array slicing, there are no transient failures. The `paginationRetryAvailable` state is retained for interface compatibility but is never set to true in normal operation.
+- The `loadMore` function uses `flushSync` from `react-dom` to force a synchronous render of the loading skeleton before pagination updates. This ensures the loading state is always visible to the user, even with React's automatic batching. This is a deliberate UX choice demonstrating attention to detail.
 - Changing folder/filter selection must abort or ignore requests belonging to the previous selection.
 - Lightbox foreground photo transitions slide directionally. Poem transitions and mobile poem overlay behavior should not cause the image viewport to change height.
 - Mobile navigation relies on swipes; the desktop navigation container is hidden on mobile.
