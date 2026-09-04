@@ -1,21 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
+import albumManifest from "../data/photoManifest.json";
 import type { Photo } from "../types/photo";
-import { fetchPhotos, PhotosFetchError, type PhotosPage } from "../utils/fetchPhotos";
+import type { AlbumManifest } from "../types/album";
 
-const CACHE_VERSION = 6;
-const CACHE_TTL_MS = 1000 * 60 * 60;
-const MAX_PAGINATION_RETRIES = 2;
-const PAGINATION_RETRY_DELAYS_MS = [500, 1500];
+const PAGE_SIZE = 12;
 
-type PhotoCache = {
-  version: number;
-  timestamp: number;
-  data: Photo[];
-  nextCursor: string | null;
+type ExposedPhotos = {
+  photos: Photo[];
+  hasMore: boolean;
 };
 
-function isPhoto(value: unknown): value is Photo {
+function validatePhoto(value: unknown): value is Photo {
   if (typeof value !== "object" || value === null) return false;
 
   const photo = value as Record<string, unknown>;
@@ -30,226 +27,141 @@ function isPhoto(value: unknown): value is Photo {
   );
 }
 
-function isPhotoCache(value: unknown): value is PhotoCache {
+function validateManifest(value: unknown): value is AlbumManifest {
   if (typeof value !== "object" || value === null) return false;
 
-  const cache = value as Record<string, unknown>;
+  const manifest = value as Record<string, unknown>;
 
-  return (
-    cache.version === CACHE_VERSION &&
-    typeof cache.timestamp === "number" &&
-    Number.isFinite(cache.timestamp) &&
-    cache.timestamp >= 0 &&
-    Array.isArray(cache.data) &&
-    cache.data.every(isPhoto) &&
-    (typeof cache.nextCursor === "string" || cache.nextCursor === null)
-  );
-}
+  if (typeof manifest.version !== "number") return false;
 
-function getCacheKey(photosFolderName: string | null) {
-  return `poetographyCache_v${CACHE_VERSION}_${photosFolderName ?? "all"}`;
-}
+  const roots = manifest.roots;
+  if (!Array.isArray(roots)) return false;
 
-function isRetryableError(error: unknown) {
-  if (error instanceof DOMException && error.name === "AbortError") return false;
+  for (const root of roots) {
+    if (
+      typeof root.id !== "string" ||
+      typeof root.label !== "string" ||
+      typeof root.folder !== "string"
+    ) {
+      return false;
+    }
+  }
 
-  if (error instanceof PhotosFetchError) {
-    return error.status === 408 || error.status === 429 || error.status >= 500;
+  const albums = manifest.albums;
+  if (!Array.isArray(albums)) return false;
+
+  for (const album of albums) {
+    if (
+      typeof album.id !== "string" ||
+      typeof album.label !== "string" ||
+      typeof album.folder !== "string"
+    ) {
+      return false;
+    }
+  }
+
+  const allPhotos = manifest.allPhotos;
+  if (!Array.isArray(allPhotos) || !allPhotos.every(validatePhoto)) return false;
+
+  const photosByFolder = manifest.photosByFolder;
+  if (typeof photosByFolder !== "object" || photosByFolder === null) return false;
+
+  for (const folder of Object.keys(photosByFolder)) {
+    const photos = (photosByFolder as Record<string, unknown>)[folder];
+    if (!Array.isArray(photos) || !photos.every(validatePhoto)) return false;
   }
 
   return true;
 }
 
-function waitForRetry(delayMs: number, signal: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => {
-      signal.removeEventListener("abort", handleAbort);
-      resolve();
-    }, delayMs);
+function getPhotosForFolder(manifest: AlbumManifest, photosFolderName: string | null): Photo[] {
+  if (photosFolderName === null) {
+    return manifest.allPhotos;
+  }
 
-    const handleAbort = () => {
-      window.clearTimeout(timeoutId);
-      reject(new DOMException("Request aborted", "AbortError"));
-    };
-
-    signal.addEventListener("abort", handleAbort, { once: true });
-
-    if (signal.aborted) handleAbort();
-  });
+  return manifest.photosByFolder[photosFolderName] ?? [];
 }
 
+const manifestValid = validateManifest(albumManifest);
+
 export function usePhotos(photosFolderName: string | null) {
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [exposed, setExposed] = useState<ExposedPhotos>(() => ({
+    photos: [],
+    hasMore: false,
+  }));
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [paginationRetryAvailable, setPaginationRetryAvailable] = useState(false);
-  const loadingMoreRef = useRef(false);
+
   const photosRef = useRef<Photo[]>([]);
-  const requestIdRef = useRef(0);
-  const activeControllerRef = useRef<AbortController | null>(null);
+  const exposedEndRef = useRef(0);
+  const loadingMoreRef = useRef(false);
+  const activeRequestIdRef = useRef(0);
 
   useEffect(() => {
-    const requestId = ++requestIdRef.current;
-    activeControllerRef.current?.abort();
-
-    const controller = new AbortController();
-    activeControllerRef.current = controller;
+    const requestId = ++activeRequestIdRef.current;
     let isMounted = true;
     loadingMoreRef.current = false;
 
-    const loadFirstPage = async () => {
-      await Promise.resolve();
-      if (!isMounted || requestId !== requestIdRef.current) return;
+    const populate = () => {
+      if (!isMounted || requestId !== activeRequestIdRef.current) return;
 
-      setPhotos([]);
-      photosRef.current = [];
-      setNextCursor(null);
-      setLoading(true);
-      setError(null);
-      setPaginationRetryAvailable(false);
-
-      const cacheKey = getCacheKey(photosFolderName);
-
-      try {
-        const cachedPhotos = localStorage.getItem(cacheKey);
-
-        if (cachedPhotos) {
-          const parsedCache: unknown = JSON.parse(cachedPhotos);
-
-          if (isPhotoCache(parsedCache)) {
-            if (isMounted && requestId === requestIdRef.current) {
-              setPhotos(parsedCache.data);
-              photosRef.current = parsedCache.data;
-              setNextCursor(parsedCache.nextCursor);
-              setLoading(false);
-            }
-
-            const isFreshCache = Date.now() - parsedCache.timestamp < CACHE_TTL_MS;
-            if (isFreshCache) return;
-          } else {
-            localStorage.removeItem(cacheKey);
-          }
-        }
-      } catch (cacheError) {
-        console.warn("Unable to read cached photos", cacheError);
-      }
-
-      try {
-        const page = await fetchPhotos(photosFolderName ?? undefined, undefined, controller.signal);
-
-        if (isMounted && requestId === requestIdRef.current) {
-          setPhotos(page.photos);
-          photosRef.current = page.photos;
-          setNextCursor(page.nextCursor);
-          setError(null);
-          setLoading(false);
-        }
-
-        const cache: PhotoCache = {
-          version: CACHE_VERSION,
-          timestamp: Date.now(),
-          data: page.photos,
-          nextCursor: page.nextCursor,
-        };
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify(cache));
-        } catch (cacheError) {
-          console.warn("Unable to cache photos", cacheError);
-        }
-      } catch (fetchError) {
-        if (controller.signal.aborted || !isMounted || requestId !== requestIdRef.current) return;
-
-        console.error(fetchError);
-
-        setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch photos");
+      if (!manifestValid) {
         setLoading(false);
-      }
-    };
-
-    loadFirstPage();
-
-    return () => {
-      isMounted = false;
-      controller.abort();
-      if (activeControllerRef.current === controller) activeControllerRef.current = null;
-    };
-  }, [photosFolderName, retryCount]);
-
-  const loadMore = useCallback(async () => {
-    if (!nextCursor || loadingMoreRef.current) return;
-
-    const requestId = requestIdRef.current;
-    const controller = new AbortController();
-    activeControllerRef.current?.abort();
-    activeControllerRef.current = controller;
-    loadingMoreRef.current = true;
-    setLoadingMore(true);
-    setPaginationRetryAvailable(false);
-
-    try {
-      let page: PhotosPage | undefined;
-
-      for (let attempt = 0; attempt <= MAX_PAGINATION_RETRIES; attempt += 1) {
-        try {
-          page = await fetchPhotos(photosFolderName ?? undefined, nextCursor, controller.signal);
-          break;
-        } catch (fetchError) {
-          if (
-            controller.signal.aborted ||
-            requestId !== requestIdRef.current ||
-            !isRetryableError(fetchError) ||
-            attempt === MAX_PAGINATION_RETRIES
-          ) {
-            throw fetchError;
-          }
-
-          await waitForRetry(PAGINATION_RETRY_DELAYS_MS[attempt], controller.signal);
-        }
-      }
-
-      if (!page || controller.signal.aborted || requestId !== requestIdRef.current) return;
-
-      const nextPhotos = [...photosRef.current, ...page.photos];
-      photosRef.current = nextPhotos;
-      setPhotos(nextPhotos);
-      setNextCursor(page.nextCursor);
-      setPaginationRetryAvailable(false);
-
-      const cache: PhotoCache = {
-        version: CACHE_VERSION,
-        timestamp: Date.now(),
-        data: nextPhotos,
-        nextCursor: page.nextCursor,
-      };
-      try {
-        localStorage.setItem(getCacheKey(photosFolderName), JSON.stringify(cache));
-      } catch (cacheError) {
-        console.warn("Unable to cache more photos", cacheError);
-      }
-    } catch (fetchError) {
-      if (
-        controller.signal.aborted ||
-        requestId !== requestIdRef.current ||
-        !isRetryableError(fetchError)
-      ) {
         return;
       }
 
-      console.error(fetchError);
-      setPaginationRetryAvailable(true);
-    } finally {
-      if (requestId === requestIdRef.current) {
-        loadingMoreRef.current = false;
-        setLoadingMore(false);
-      }
-      if (activeControllerRef.current === controller) activeControllerRef.current = null;
-    }
-  }, [nextCursor, photosFolderName]);
+      const allPhotos = getPhotosForFolder(albumManifest, photosFolderName);
 
-  const retry = useCallback(() => setRetryCount((count) => count + 1), []);
+      photosRef.current = allPhotos;
+      exposedEndRef.current = Math.min(allPhotos.length, PAGE_SIZE);
+
+      setExposed({
+        photos: allPhotos.slice(0, exposedEndRef.current),
+        hasMore: allPhotos.length > PAGE_SIZE,
+      });
+      setLoading(false);
+      setPaginationRetryAvailable(false);
+    };
+
+    queueMicrotask(populate);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [photosFolderName]);
+
+  const loadMore = useCallback(() => {
+    if (loadingMoreRef.current) return;
+    if (!manifestValid) return;
+
+    const hasMore = exposedEndRef.current < photosRef.current.length;
+    if (!hasMore) return;
+
+    loadingMoreRef.current = true;
+
+    // Guarantee the loading skeleton renders before pagination updates
+    flushSync(() => {
+      setLoadingMore(true);
+    });
+
+    const nextEnd = Math.min(photosRef.current.length, exposedEndRef.current + PAGE_SIZE);
+
+    exposedEndRef.current = nextEnd;
+
+    setExposed({
+      photos: photosRef.current.slice(0, nextEnd),
+      hasMore: nextEnd < photosRef.current.length,
+    });
+
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
+  }, []);
+
+  const retry = useCallback(() => {
+    /* No-op kept for interface compatibility. */
+  }, []);
+
   const retryLoadMore = useCallback(() => {
     setPaginationRetryAvailable(false);
     void loadMore();
@@ -258,9 +170,9 @@ export function usePhotos(photosFolderName: string | null) {
   return {
     loading,
     loadingMore,
-    hasMore: nextCursor !== null,
-    photos,
-    error,
+    hasMore: exposed.hasMore,
+    photos: exposed.photos,
+    error: !manifestValid ? "Failed to load photos" : null,
     loadMore,
     retry,
     paginationRetryAvailable,

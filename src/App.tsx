@@ -2,7 +2,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 
 import Gallery from "./components/Gallery/Gallery";
-import albumManifest from "./data/albums.json";
+import albumManifest from "./data/photoManifest.json";
 
 import { usePhotos } from "./hooks/usePhotos";
 import type { AlbumManifest } from "./types/album";

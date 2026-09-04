@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { v2 as cloudinary } from "cloudinary";
 
-const outputPath = resolve("src/data/albums.json");
+const outputPath = resolve("src/data/photoManifest.json");
 const roots = new Map([
   ["analog", "Analógicas"],
   ["digital", "Digitales"],
@@ -19,6 +19,8 @@ cloudinary.config({
 });
 
 const folders = new Set();
+const photosByFolder = new Map();
+let allPhotos = [];
 let nextCursor;
 
 do {
@@ -35,10 +37,34 @@ do {
     const segments = resource.public_id.split("/");
     const root = segments[0];
 
-    if (!roots.has(root) || segments.length < 2) continue;
+    if (!roots.has(root)) continue;
+
+    const photo = {
+      url: resource.secure_url,
+      publicId: resource.public_id,
+      width: resource.width,
+      height: resource.height,
+    };
+
+    allPhotos.push(photo);
+
+    if (segments.length === 1) {
+      const rootFolder = segments[0];
+      if (!photosByFolder.has(rootFolder)) {
+        photosByFolder.set(rootFolder, []);
+      }
+      photosByFolder.get(rootFolder).push(photo);
+      continue;
+    }
 
     for (let depth = 1; depth < segments.length; depth += 1) {
-      folders.add(segments.slice(0, depth).join("/"));
+      const folder = segments.slice(0, depth).join("/");
+      folders.add(folder);
+
+      if (!photosByFolder.has(folder)) {
+        photosByFolder.set(folder, []);
+      }
+      photosByFolder.get(folder).push(photo);
     }
   }
 
@@ -59,8 +85,16 @@ const manifest = {
     .filter((folder) => !roots.has(folder))
     .sort()
     .map((folder) => ({ id: folder, label: labelForFolder(folder), folder })),
+  allPhotos,
+  photosByFolder: [...folders, ...roots.keys()].reduce(
+    (acc, folder) => {
+      acc[folder] = photosByFolder.get(folder) ?? [];
+      return acc;
+    },
+    {}
+  ),
 };
 
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`Generated album manifest with ${manifest.albums.length} albums.`);
+console.log(`Generated photo manifest with ${manifest.albums.length} albums and ${allPhotos.length} photos.`);
