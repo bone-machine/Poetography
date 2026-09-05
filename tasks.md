@@ -23,6 +23,8 @@ This is a lightweight project backlog. Completed items are retained as context; 
 - [x] Replace runtime metadata fetching with build-time manifest-based loading (full manifest approach).
 - [x] Add `flushSync` from `react-dom` to guarantee loading skeletons render during pagination.
 - [x] Update documentation (AGENTS.md, requirements.md, design.md, tasks.md) to reflect the new architecture.
+- [x] Removed `allPhotos` and parent-child duplication from manifest — only leaf folders in `photosByFolder`, "Todas" computed via `Object.values(photosByFolder).flat()`, root views via prefix filtering.
+- [x] Document that root folders are auto-discovered from Cloudinary, not hardcoded.
 
 ## Open investigations
 
@@ -48,3 +50,5 @@ This is a lightweight project backlog. Completed items are retained as context; 
 - [ ] Improve focus management when opening and closing the Lightbox.
 - [ ] Add a visible loading state or transition policy for the first Lightbox image if first-mount animation profiling identifies image decode contention.
 - [ ] Consider a manifest size budget threshold (e.g., switch to hybrid API-backed loading for large albums) if the photo library grows significantly.
+- [x] Added build-time and runtime manifest validation (structure, photo fields, duplicate publicId checks). Both validators enforce the same rules.
+- [x] Updated documentation (AGENTS.md, requirements.md, design.md, tasks.md) to reflect the current architecture.

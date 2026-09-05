@@ -15,6 +15,7 @@ The application is deployed to Netlify. Netlify hosts the frontend build. Cloudi
 
 - `src/hooks/usePhotos.ts`
   - Loads photo metadata synchronously from the build-time manifest for the selected folder (or the "All" view).
+  - Resolves folders using `getPhotosForFolder`: "Todas" (null) → `Object.values(photosByFolder).flat()`; root folder (e.g., "analog") → filter by `folder === root || folder.startsWith(root + '/')` and flatten; specific album → direct lookup in `photosByFolder`.
   - Paginates client-side through the in-memory photo array in PAGE_SIZE batches (12 photos per page).
   - Shows loading skeletons on initial mount and on folder switches until the manifest data is exposed.
   - Uses `flushSync` from `react-dom` in the `loadMore` function to guarantee the loading skeleton renders before pagination completes, preventing React's automatic batching from hiding the loading state.
@@ -23,7 +24,6 @@ The application is deployed to Netlify. Netlify hosts the frontend build. Cloudi
   - No longer fetches photo metadata from the Netlify function or Cloudinary Search API during normal browsing.
   - Eliminated localStorage caching, AbortController for metadata requests, retry loops, and cursor-based pagination—all replaced by simple in-memory array operations.
   - The `photosHandler` Netlify function is retained but unused during normal operation; it exists as the server-side Cloudinary credential boundary for potential future webhook flows or debugging.
-  - The `retry` callback is now a no-op kept for interface compatibility since there are no transient failures to retry in the synchronous pagination model.
 
 - `src/components/Gallery/Gallery.tsx`
   - Owns the internal scrollable gallery viewport.
@@ -67,9 +67,9 @@ The application is deployed to Netlify. Netlify hosts the frontend build. Cloudi
 
 - `scripts/generate-album-manifest.mjs`
   - Runs during builds before TypeScript/Vite compilation.
-  - Queries Cloudinary server-side, discovers nested folders, and writes `src/data/photoManifest.json`.
-  - The generated manifest now contains localized root labels, humanized album labels, an ordered `allPhotos` array for the unfiltered view, and a `photosByFolder` map with ordered photos per root and nested album.
-  - Photo metadata in the manifest is the runtime source of truth for gallery/lightbox browsing; the Netlify photosHandler remains the server-side Cloudinary credential boundary.
+  - Queries Cloudinary server-side, auto-discovers root folders and nested albums from all image resources, and writes `src/data/photoManifest.json`.
+  - The generated manifest contains localized root labels, humanized album labels, and a `photosByFolder` map with ordered photos per leaf folder only (no parent-child duplication, no `allPhotos` field). Root folders are discovered dynamically from the Cloudinary folder structure; they are not hardcoded.
+  - The `photosHandler` Netlify function is retained but unused during normal operation; it exists as the server-side Cloudinary credential boundary for potential future webhook flows or debugging.
 
 ## Data and content conventions
 
@@ -93,7 +93,7 @@ type Poem = {
 };
 ```
 
-Album folders are represented by paths such as `analog/odyssey`. The “All” filter sends no folder parameter; root and album buttons send the corresponding folder path.
+Album folders are represented by paths such as `analog/odyssey`. The manifest's `photosByFolder` map contains an entry for every folder path that has photos directly in it — no parent aggregation, no `allPhotos` field. Photos in `analog/odyssey/` appear only in `photosByFolder["analog/odyssey"]`, never also in an aggregated `photosByFolder["analog"]` entry. A root folder like `digital` can have its own entry if it has direct photos. Each photo appears exactly once. The "Todas" (All) view is computed at runtime as `Object.values(photosByFolder).flat()`. Root folder views (e.g., "Analógicas") filter by prefix (`folder === 'analog' || folder.startsWith('analog/')`). The "All" filter sends no folder parameter; root and album buttons send the corresponding folder path.
 
 ## Build, development, and checks
 
@@ -110,6 +110,17 @@ npm run build
 `npm run build` regenerates the album manifest and therefore requires valid Cloudinary credentials and network access. Run it when explicitly requested or when validating the deployment/build pipeline. For ordinary UI changes, linting, CSS linting, TypeScript, and `git diff --check` are usually sufficient.
 
 Prettier is already used by the project; avoid unrelated formatting churn. CSS modules use Stylelint ordering rules. Preserve existing user changes in a dirty worktree and inspect `git diff` before editing overlapping files.
+
+## Build-time and runtime manifest validation
+
+The project uses two validators that enforce the same rules:
+
+- `scripts/validate-photo-manifest.mjs` (build-time): runs during `npm run build`. Validates version, roots, albums, photosByFolder structure, photo fields, and checks for duplicate publicIds within and across folders. Exits with non-zero on failure, which stops the build and prevents deployment.
+- `src/hooks/usePhotos.ts` `validateManifest` (runtime): runs when the app loads the manifest. Validates the same structural rules and checks for duplicate publicIds. Returns `false` → app shows "Failed to load photos" error.
+
+Both validators enforce: no duplicate publicIds in the manifest (each photo appears exactly once). This catches data corruption or generation bugs.
+
+`package.json` build pipeline: `npm run generate:albums && npm run validate:manifest && tsc -b && vite build`. If validation fails, the build stops before TypeScript compilation and Vite build.
 
 ## Important UX decisions already made
 

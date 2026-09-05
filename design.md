@@ -22,22 +22,16 @@ Gallery → Lightbox
 
 ## Cloudinary organization
 
-The supported roots are:
+Root folders are auto-discovered from all Cloudinary image resources during the build. The current library uses:
 
 ```text
 analog/
+  analog/odyssey
+  analog/slayyy
 digital/
 ```
 
-Nested folders are supported, for example:
-
-```text
-analog/odyssey
-analog/fomapan200_april_2023
-digital/some-future-album
-```
-
-`photosHandler.ts` accepts only supported roots and safe path segments. Root queries include nested folders. The build-time manifest generator discovers folders from all Cloudinary image resources and writes `src/data/photoManifest.json`.
+`photosHandler.ts` still validates against hardcoded roots (`analog`, `digital`) for security, but the manifest generator discovers all root folders dynamically from the Cloudinary folder structure. The build-time manifest generator writes `src/data/photoManifest.json` with only leaf folders (no parent aggregation).
 
 ## Gallery layout and image delivery
 
@@ -55,10 +49,14 @@ The Lightbox uses separate aspect-ratio-preserving `c_limit` transformations siz
 
 ## Metadata loading and pagination
 
-Photo metadata is embedded in the build-time manifest (`src/data/photoManifest.json`) as two arrays:
+Photo metadata is embedded in the build-time manifest (`src/data/photoManifest.json`) as:
 
-- `allPhotos`: ordered photos for the unfiltered "All" view.
-- `photosByFolder`: ordered photos per root folder and nested album.
+- `photosByFolder`: a map from folder path to the photos that live directly in that folder. Each photo appears exactly once, keyed by the folder path where it lives. There is no `allPhotos` field and no parent-child duplication. Photos in `analog/odyssey/` appear only in `photosByFolder["analog/odyssey"]`, never also aggregated into `photosByFolder["analog"]`. A root folder like `digital` can have its own entry if it has direct photos.
+- `roots` and `albums`: navigation arrays derived from the folder structure (auto-discovered from Cloudinary, not hardcoded).
+
+The "Todas" (All) view is computed at runtime as `Object.values(photosByFolder).flat()`. Root folder views (e.g., "Analógicas") filter by prefix (`folder === 'analog' || folder.startsWith('analog/')`). Specific album views use direct lookup.
+
+Both the build-time validator (`scripts/validate-photo-manifest.mjs`) and the runtime validator (`usePhotos.validateManifest`) enforce that each photo appears exactly once (no duplicate publicIds within or across folders).
 
 `usePhotos` loads the appropriate array synchronously based on the selected folder (or the "All" view). There is no runtime network request for metadata during normal browsing.
 

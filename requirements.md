@@ -21,11 +21,13 @@ Poetography is a photographic portfolio. It presents curated digital and analog 
 
 ### Filters and albums
 
-- Provide an “All” filter.
+- Provide an "All" filter.
 - Provide filters for the `analog` and `digital` roots.
 - Provide filters for discovered nested Cloudinary folders.
 - Treat folder paths as data, not as arbitrary executable input.
 - Generate album navigation data during the build from Cloudinary metadata.
+- Auto-discover root folders from Cloudinary during the build; do not hardcode folder names.
+- The `photosByFolder` map contains an entry for every folder path that has photos directly in it. No entry aggregates photos from child folders — there is no parent-child duplication. For example, photos in `analog/odyssey/` appear only in `photosByFolder["analog/odyssey"]`, never also in `photosByFolder["analog"]`. A root folder like `digital` can have its own entry if it has direct photos. The "All" view is computed at runtime by flattening `photosByFolder`. Root folder views filter by prefix (`folder === root || folder.startsWith(root + '/')`).
 
 ### Lightbox
 
@@ -53,12 +55,12 @@ Poetography is a photographic portfolio. It presents curated digital and analog 
 
 ## Reliability requirements
 
-- Abort stale metadata requests when the selected folder changes or an initial retry starts.
-- Ignore responses belonging to an obsolete request even if cancellation races with completion.
-- Cache photo metadata separately by folder and cache version.
-- Use a finite cache lifetime.
 - Do not expose Cloudinary API credentials in browser code.
-- Handle Cloudinary/API/network failures with appropriate initial-load and pagination states.
+- Validate the build-time manifest at build time with `scripts/validate-photo-manifest.mjs`. The validator checks version, roots, albums, photosByFolder structure, photo fields, and duplicate publicIds (within and across folders). A validation failure stops the build and prevents deployment.
+- Validate the manifest at runtime in `usePhotos` with `validateManifest`. The runtime validator checks the same rules and surfaces failures as "Failed to load photos".
+- Ensure each photo appears exactly once in the manifest (no duplicate publicIds). This is enforced by both validators.
+- Fall back to an empty photo list for unknown folders rather than crashing.
+- Keep the `photosHandler` Netlify function as the server-side Cloudinary credential boundary, retained for potential webhook flows or debugging.
 
 ## Accessibility and motion requirements
 
