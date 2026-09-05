@@ -20,7 +20,6 @@ type GalleryProps = {
   hasMorePhotos: boolean;
   onLoadMore: () => void;
   error: string | null;
-  onRetry: () => void;
   paginationRetryAvailable: boolean;
   onRetryLoadMore: () => void;
   photosFolderName: string | null;
@@ -33,7 +32,6 @@ const Gallery = ({
   hasMorePhotos,
   onLoadMore,
   error,
-  onRetry,
   paginationRetryAvailable,
   onRetryLoadMore,
   photosFolderName,
@@ -109,9 +107,6 @@ const Gallery = ({
             {error && !galleryPhotos.length && !isLoadingMetadata ? (
               <div className={styles["gallery-error"]} role="alert">
                 <p>No se pudo cargar la galería de fotos.</p>
-                <button type="button" onClick={onRetry}>
-                  Reintentar
-                </button>
               </div>
             ) : (
               <div className={styles.gallery}>

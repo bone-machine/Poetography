@@ -158,10 +158,6 @@ export function usePhotos(photosFolderName: string | null) {
     setLoadingMore(false);
   }, []);
 
-  const retry = useCallback(() => {
-    /* No-op kept for interface compatibility. */
-  }, []);
-
   const retryLoadMore = useCallback(() => {
     setPaginationRetryAvailable(false);
     void loadMore();
@@ -174,7 +170,6 @@ export function usePhotos(photosFolderName: string | null) {
     photos: exposed.photos,
     error: !manifestValid ? "Failed to load photos" : null,
     loadMore,
-    retry,
     paginationRetryAvailable,
     retryLoadMore,
   };

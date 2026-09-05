@@ -19,7 +19,6 @@ const App = () => {
     hasMore,
     loadMore,
     error,
-    retry,
     paginationRetryAvailable,
     retryLoadMore,
   } = usePhotos(photosFolderName);
@@ -63,7 +62,6 @@ const App = () => {
         hasMorePhotos={hasMore}
         onLoadMore={loadMore}
         error={error}
-        onRetry={retry}
         paginationRetryAvailable={paginationRetryAvailable}
         onRetryLoadMore={retryLoadMore}
         photosFolderName={photosFolderName}
