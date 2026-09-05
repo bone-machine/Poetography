@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "netlify dev --no-open",
     "generate:albums": "node --env-file-if-exists=.env scripts/generate-album-manifest.mjs",
-    "build": "npm run generate:albums && tsc -b && vite build",
+    "validate:manifest": "node scripts/validate-photo-manifest.mjs",
+    "build": "npm run generate:albums && npm run validate:manifest && tsc -b && vite build",
     "lint": "eslint .",
     "lint:css": "stylelint \"src/**/*.css\"",
     "format": "prettier --write .",
