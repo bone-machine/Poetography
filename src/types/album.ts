@@ -22,8 +22,12 @@ export type AlbumManifest = {
   version: number;
   roots: Album[];
   albums: Album[];
-  /** Photos for the unfiltered "All" view, ordered by public_id. */
-  allPhotos: Photo[];
-  /** Ordered photos per folder, including root folders and nested albums. */
+  /**
+   * Photos organized by leaf folder path only.
+   * No parent-child duplication — each photo appears exactly once.
+   * "Todas" (All) view: Object.values(photosByFolder).flat()
+   * Root folder view: filter by prefix (e.g., folder.startsWith('analog/'))
+   * Specific album: direct lookup
+   */
   photosByFolder: Record<string, Photo[]>;
 };

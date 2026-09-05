@@ -1,12 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { v2 as cloudinary } from "cloudinary";
-
-const outputPath = resolve("src/data/photoManifest.json");
-const roots = new Map([
-  ["analog", "Analógicas"],
-  ["digital", "Digitales"],
-]);
+import { v2 as cloudinary } from "cloudinary";const outputPath = resolve("src/data/photoManifest.json");
 
 if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
   throw new Error("Cloudinary credentials are required to generate the album manifest.");
@@ -18,11 +12,13 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const folders = new Set();
-const photosByFolder = new Map();
-let allPhotos = [];
+// Track discovered folder structure
+const rootFolders = new Set();
+const nestedFolders = new Set();
+const leafFolders = new Map(); // folderPath -> photos (only leaf folders, no parent aggregation)
 let nextCursor;
 
+// Fetch all images from Cloudinary
 do {
   const search = cloudinary.search
     .expression("resource_type:image")
@@ -35,9 +31,12 @@ do {
 
   for (const resource of result.resources) {
     const segments = resource.public_id.split("/");
-    const root = segments[0];
 
-    if (!roots.has(root)) continue;
+    // Skip if photo has no folder structure
+    if (segments.length < 2) continue;
+
+    const root = segments[0];
+    rootFolders.add(root);
 
     const photo = {
       url: resource.secure_url,
@@ -46,55 +45,67 @@ do {
       height: resource.height,
     };
 
-    allPhotos.push(photo);
+    // Determine the leaf folder for this photo
+    // Photos directly in a root (e.g., digital/photo.jpg) belong to the root folder
+    // Photos in nested folders (e.g., analog/odyssey/photo.jpg) belong to the nested folder
+    const leafFolder = segments.length === 2
+      ? root  // Direct child of root
+      : segments.slice(0, -1).join("/");  // Nested folder path
 
-    if (segments.length === 1) {
-      const rootFolder = segments[0];
-      if (!photosByFolder.has(rootFolder)) {
-        photosByFolder.set(rootFolder, []);
-      }
-      photosByFolder.get(rootFolder).push(photo);
-      continue;
+    if (!leafFolders.has(leafFolder)) {
+      leafFolders.set(leafFolder, []);
     }
+    leafFolders.get(leafFolder).push(photo);
 
-    for (let depth = 1; depth < segments.length; depth += 1) {
-      const folder = segments.slice(0, depth).join("/");
-      folders.add(folder);
-
-      if (!photosByFolder.has(folder)) {
-        photosByFolder.set(folder, []);
-      }
-      photosByFolder.get(folder).push(photo);
+    // Track nested folders (only if depth > 2 segments, i.e., has a parent beyond root)
+    if (segments.length > 2) {
+      nestedFolders.add(leafFolder);
     }
   }
 
   nextCursor = result.next_cursor;
 } while (nextCursor);
 
-const labelForFolder = (folder) => {
-  const name = folder.split("/").at(-1) ?? folder;
+// Helper to humanize folder names
+const humanizeLabel = (name) => {
   return name
+    .split("/")
+    .at(-1)
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
+// Build manifest with only leaf folders (no parent aggregation, no allPhotos)
 const manifest = {
   version: 1,
-  roots: [...roots].map(([id, label]) => ({ id, label, folder: id })),
-  albums: [...folders]
-    .filter((folder) => !roots.has(folder))
+  roots: [...rootFolders]
     .sort()
-    .map((folder) => ({ id: folder, label: labelForFolder(folder), folder })),
-  allPhotos,
-  photosByFolder: [...folders, ...roots.keys()].reduce(
-    (acc, folder) => {
-      acc[folder] = photosByFolder.get(folder) ?? [];
+    .map((folder) => ({ 
+      id: folder, 
+      label: humanizeLabel(folder), 
+      folder 
+    })),
+  albums: [...nestedFolders]
+    .sort()
+    .map((folder) => ({ 
+      id: folder, 
+      label: humanizeLabel(folder), 
+      folder 
+    })),
+  // Only leaf folders — no parent-child duplication, no allPhotos redundancy.
+  // "Todas" (All) view: Object.values(photosByFolder).flat()
+  // Root folder view: filter by prefix (e.g., folder.startsWith('analog/'))
+  // Specific album: direct lookup
+  photosByFolder: [...leafFolders.keys()]
+    .sort()
+    .reduce((acc, folder) => {
+      acc[folder] = leafFolders.get(folder);
       return acc;
-    },
-    {}
-  ),
+    }, {}),
 };
+
+const totalPhotos = [...leafFolders.values()].reduce((sum, photos) => sum + photos.length, 0);
 
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`Generated photo manifest with ${manifest.albums.length} albums and ${allPhotos.length} photos.`);
+console.log(`Generated photo manifest with ${manifest.roots.length} roots, ${manifest.albums.length} nested albums, ${totalPhotos} photos across ${Object.keys(manifest.photosByFolder).length} leaf folders.`);

@@ -60,25 +60,45 @@ function validateManifest(value: unknown): value is AlbumManifest {
     }
   }
 
-  const allPhotos = manifest.allPhotos;
-  if (!Array.isArray(allPhotos) || !allPhotos.every(validatePhoto)) return false;
-
   const photosByFolder = manifest.photosByFolder;
   if (typeof photosByFolder !== "object" || photosByFolder === null) return false;
 
+  const photoSet = new Set<string>();
+
   for (const folder of Object.keys(photosByFolder)) {
     const photos = (photosByFolder as Record<string, unknown>)[folder];
-    if (!Array.isArray(photos) || !photos.every(validatePhoto)) return false;
+
+    if (!Array.isArray(photos)) return false;
+
+    for (const photo of photos) {
+      if (!validatePhoto(photo)) return false;
+
+      const publicId = (photo as Record<string, unknown>).publicId as string;
+      if (photoSet.has(publicId)) return false;
+      photoSet.add(publicId);
+    }
   }
 
   return true;
 }
 
 function getPhotosForFolder(manifest: AlbumManifest, photosFolderName: string | null): Photo[] {
+  // "Todas" (All) filter — flatten all leaf folders
   if (photosFolderName === null) {
-    return manifest.allPhotos;
+    return Object.values(manifest.photosByFolder).flat();
   }
 
+  // Root folder — aggregate all photos from this root and its nested albums
+  const isRoot = manifest.roots.some((root) => root.folder === photosFolderName);
+  if (isRoot) {
+    return Object.entries(manifest.photosByFolder)
+      .filter(
+        ([folder]) => folder === photosFolderName || folder.startsWith(photosFolderName + "/"),
+      )
+      .flatMap(([, photos]) => photos);
+  }
+
+  // Specific album (nested folder) — direct lookup
   return manifest.photosByFolder[photosFolderName] ?? [];
 }
 
