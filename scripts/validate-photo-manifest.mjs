@@ -86,18 +86,6 @@ async function validateManifest() {
     }
   }
 
-  // Validate allPhotos
-  if (!Array.isArray(manifest.allPhotos)) {
-    errors.push("Manifest missing 'allPhotos' array");
-  } else {
-    for (let i = 0; i < manifest.allPhotos.length; i++) {
-      const result = validatePhoto(manifest.allPhotos[i]);
-      if (!result.valid) {
-        errors.push(`allPhotos[${i}]: ${result.error}`);
-      }
-    }
-  }
-
   // Validate photosByFolder
   if (typeof manifest.photosByFolder !== "object" || manifest.photosByFolder === null) {
     errors.push("Manifest missing 'photosByFolder' object");
@@ -108,11 +96,20 @@ async function validateManifest() {
         continue;
       }
 
+      const seenPublicIds = new Set();
       for (let i = 0; i < photos.length; i++) {
         const result = validatePhoto(photos[i]);
         if (!result.valid) {
           errors.push(`photosByFolder['${folder}'][${i}]: ${result.error}`);
+          continue;
         }
+
+        const publicId = photos[i].publicId;
+        if (seenPublicIds.has(publicId)) {
+          errors.push(`photosByFolder['${folder}'][${i}]: duplicate publicId '${publicId}' within folder`);
+          continue;
+        }
+        seenPublicIds.add(publicId);
       }
     }
   }
@@ -125,11 +122,26 @@ async function validateManifest() {
     process.exit(1);
   }
 
+  // Check for cross-folder duplicate publicIds
+  const allPublicIds = new Set();
+  for (const [folder, photos] of Object.entries(manifest.photosByFolder || {})) {
+    if (!Array.isArray(photos)) continue;
+    for (const photo of photos) {
+      const publicId = photo.publicId;
+      if (allPublicIds.has(publicId)) {
+        errors.push(`Duplicate publicId '${publicId}' found in multiple folders (first seen in an earlier folder)`);
+      }
+      allPublicIds.add(publicId);
+    }
+  }
+
+  const totalPhotos = Object.values(manifest.photosByFolder || {})
+    .reduce((sum, photos) => sum + (Array.isArray(photos) ? photos.length : 0), 0);
+
   console.log("✅ Photo manifest is valid");
   console.log(`   - ${manifest.roots?.length || 0} roots`);
   console.log(`   - ${manifest.albums?.length || 0} albums`);
-  console.log(`   - ${manifest.allPhotos?.length || 0} total photos`);
-  console.log(`   - ${Object.keys(manifest.photosByFolder || {}).length} folders`);
+  console.log(`   - ${totalPhotos} total photos across ${Object.keys(manifest.photosByFolder || {}).length} leaf folders`);
 }
 
 validateManifest();
